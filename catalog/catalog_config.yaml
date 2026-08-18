@@ -1,0 +1,25 @@
+# ---------------------------------------------------------------------------
+# Nessie catalog connection config
+# Used by PyIceberg (catalog management) and PyFlink (SQL DDL)
+# ---------------------------------------------------------------------------
+catalog:
+  name: nessie_catalog
+  type: nessie
+  uri: http://nessie:19120/api/v1      # Nessie REST endpoint (v1 for PyIceberg compat)
+  ref: main                            # Default Nessie branch
+  warehouse: s3://warehouse/           # MinIO bucket where Parquet files are stored
+
+storage:
+  s3:
+    endpoint: http://minio:9000
+    access_key_id: minioadmin
+    secret_access_key: minioadmin
+    region: us-east-1                  # Required by S3 client, any value works for MinIO
+    path_style_access: true            # MinIO requires path-style (not virtual-hosted)
+
+# ---------------------------------------------------------------------------
+# Default namespace (database) for Iceberg tables
+# ---------------------------------------------------------------------------
+defaults:
+  namespace: lakehouse_db
+  checkpoint_path: s3://flink/checkpoints

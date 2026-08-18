@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+*.egg
+
+# Flink checkpoints / savepoints (stored in MinIO, no need to commit locally)
+checkpoints/
+savepoints/
+
+# Docker volumes (data lives in named volumes, not in repo)
+minio-data/
+kafka-data/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Local analytics output
+*.parquet
+*.csv
+*.json
+!**/example*.json
+
+# OS
+.DS_Store
+Thumbs.db
