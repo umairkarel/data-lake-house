@@ -1,0 +1,4 @@
+aiohttp==3.8.2
+kafka-python==2.0.2
+pre-commit==3.8.0
+aiokafka==0.12.0

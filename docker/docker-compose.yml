@@ -183,19 +183,23 @@ services:
       - lakehouse
 
   # ---------------------------------------------------------------------------
-  # Message Generator (msgGeneratorKafka) — REST API to push events to Kafka
+  # Event Generator (msgGeneratorKafka) — REST API to push events to Kafka
   # Mounts the sibling project directory so you don't need to copy code
   # ---------------------------------------------------------------------------
-  msg-generator:
+  event-generator:
     image: python:3.11
-    container_name: lakehouse-msg-generator
+    container_name: lakehouse-event-generator
     working_dir: /app
     ports:
       - "8090:8090"   # aiohttp REST API
     volumes:
-      - ../../msgGeneratorKafka:/app   # mount the sibling project
+      - ../event-generator:/app   # mount the local project workspace copy
     environment:
       PYTHONUNBUFFERED: "1"
+      ACTIVE_GENERATION: "false"
+      KAFKA_TOPIC: "benchmark_events"
+      KAFKA_BROKER: "kafka:9092"
+      GENERATION_INTERVAL_SEC: "2.0"
     command: >
       sh -c "pip install --quiet -r requirements.txt && python src/main.py"
     depends_on:
