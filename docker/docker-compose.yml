@@ -60,9 +60,10 @@ services:
     ports:
       - "9000:9000"   # S3 API
       - "9001:9001"   # Web console
+    env_file: ../.env
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
     command: server /data --console-address ":9001"
     volumes:
       - minio-data:/data
@@ -83,9 +84,10 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+    env_file: ../.env
     entrypoint: >
       /bin/sh -c "
-        mc alias set local http://minio:9000 minioadmin minioadmin;
+        mc alias set local ${S3_ENDPOINT:-http://minio:9000} ${S3_ACCESS_KEY:-minioadmin} ${S3_SECRET_KEY:-minioadmin};
         mc mb --ignore-existing local/warehouse;
         mc mb --ignore-existing local/flink;
         echo 'Buckets created.';
@@ -126,6 +128,7 @@ services:
     container_name: lakehouse-jobmanager
     ports:
       - "8081:8081"   # Flink Web UI
+    env_file: ../.env
     environment:
       - |
         FLINK_PROPERTIES=
@@ -133,10 +136,10 @@ services:
         jobmanager.memory.process.size: 1600m
         rest.port: 8081
         # S3 / MinIO config (used by Flink checkpoints + Iceberg writes)
-        s3.endpoint: http://minio:9000
-        s3.access-key: minioadmin
-        s3.secret-key: minioadmin
-        s3.path.style.access: true
+        s3.endpoint: ${S3_ENDPOINT:-http://minio:9000}
+        s3.access-key: ${S3_ACCESS_KEY:-minioadmin}
+        s3.secret-key: ${S3_SECRET_KEY:-minioadmin}
+        s3.path.style.access: ${S3_PATH_STYLE_ACCESS:-true}
     command: jobmanager
     volumes:
       - ../jobs:/opt/flink/jobs          # PyFlink job scripts
@@ -161,16 +164,17 @@ services:
   taskmanager:
     image: lakehouse-flink:1.20.0
     container_name: lakehouse-taskmanager
+    env_file: ../.env
     environment:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
         taskmanager.memory.process.size: 2048m
         taskmanager.numberOfTaskSlots: 4
-        s3.endpoint: http://minio:9000
-        s3.access-key: minioadmin
-        s3.secret-key: minioadmin
-        s3.path.style.access: true
+        s3.endpoint: ${S3_ENDPOINT:-http://minio:9000}
+        s3.access-key: ${S3_ACCESS_KEY:-minioadmin}
+        s3.secret-key: ${S3_SECRET_KEY:-minioadmin}
+        s3.path.style.access: ${S3_PATH_STYLE_ACCESS:-true}
     command: taskmanager
     volumes:
       - ../jobs:/opt/flink/jobs
@@ -194,6 +198,7 @@ services:
       - "8090:8090"   # aiohttp REST API
     volumes:
       - ../event-generator:/app   # mount the local project workspace copy
+    env_file: ../.env
     environment:
       PYTHONUNBUFFERED: "1"
       ACTIVE_GENERATION: "false"

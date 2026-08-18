@@ -1,12 +1,13 @@
 import boto3
 import duckdb
+import os
 
 def get_latest_metadata_path(bucket, prefix):
     # Connect to MinIO
     s3 = boto3.client('s3',
-                      endpoint_url='http://localhost:9000',
-                      aws_access_key_id='minioadmin',
-                      aws_secret_access_key='minioadmin')
+                      endpoint_url=os.getenv('S3_ENDPOINT', 'http://localhost:9000'),
+                      aws_access_key_id=os.getenv('S3_ACCESS_KEY', 'minioadmin'),
+                      aws_secret_access_key=os.getenv('S3_SECRET_KEY', 'minioadmin'))
     
     # List all objects under the warehouse/lakehouse prefix
     response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
@@ -56,14 +57,19 @@ con.execute("LOAD httpfs;")
 con.execute("INSTALL iceberg;")
 con.execute("LOAD iceberg;")
 
-# Configure S3 credentials for MinIO
-con.execute("""
+# Configure S3 credentials from environment variables
+access_key = os.getenv('S3_ACCESS_KEY', 'minioadmin')
+secret_key = os.getenv('S3_SECRET_KEY', 'minioadmin')
+endpoint = os.getenv('S3_ENDPOINT', 'http://localhost:9000').replace('http://', '').replace('https://', '')
+url_style = 'path' if str(os.getenv('S3_PATH_STYLE_ACCESS', 'true')).lower() == 'true' else 'vhost'
+
+con.execute(f"""
     CREATE SECRET minio_secret (
         TYPE S3,
-        KEY_ID 'minioadmin',
-        SECRET 'minioadmin',
-        ENDPOINT 'localhost:9000',
-        URL_STYLE 'path',
+        KEY_ID '{access_key}',
+        SECRET '{secret_key}',
+        ENDPOINT '{endpoint}',
+        URL_STYLE '{url_style}',
         USE_SSL false
     );
 """)
