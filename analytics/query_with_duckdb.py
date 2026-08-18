@@ -1,136 +1,85 @@
-"""
-query_with_duckdb.py
---------------------
-Query Iceberg tables locally using DuckDB + PyIceberg.
-
-DuckDB reads Iceberg metadata via PyIceberg, then queries the Parquet files
-directly from MinIO — no Flink JVM required.
-
-Features demonstrated:
-  - Basic SELECT queries
-  - Time travel (query a previous snapshot)
-  - Read from a Nessie branch
-
-Usage:
-    python analytics/query_with_duckdb.py
-    python analytics/query_with_duckdb.py --branch dev
-    python analytics/query_with_duckdb.py --snapshot 1234567890
-"""
-
-import argparse
-import sys
-from pathlib import Path
-import yaml
+import boto3
 import duckdb
 
-CONFIG_PATH = Path(__file__).parent.parent / "catalog" / "catalog_config.yaml"
+def get_latest_metadata_path(bucket, prefix):
+    # Connect to MinIO
+    s3 = boto3.client('s3',
+                      endpoint_url='http://localhost:9000',
+                      aws_access_key_id='minioadmin',
+                      aws_secret_access_key='minioadmin')
+    
+    # List all objects under the warehouse/lakehouse prefix
+    response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+    
+    # Find all metadata.json files and group them by table folder UUID
+    metadata_files = {}
+    for obj in response.get('Contents', []):
+        key = obj['Key']
+        if key.endswith('.metadata.json'):
+            # Path looks like: lakehouse/benchmark_events_UUID/metadata/0000x-uuid.metadata.json
+            parts = key.split('/')
+            folder_name = parts[1] # benchmark_events_UUID
+            metadata_files.setdefault(folder_name, []).append(obj)
+            
+    # Find the active folder (the one that actually has data in it)
+    active_folder = None
+    latest_metadata_key = None
+    
+    for folder, files in metadata_files.items():
+        # Check if this folder has a data/ directory
+        data_prefix = f"lakehouse/{folder}/data/"
+        data_response = s3.list_objects_v2(Bucket=bucket, Prefix=data_prefix, MaxKeys=1)
+        if 'Contents' in data_response:
+            active_folder = folder
+            # Sort metadata files by LastModified to get the latest snapshot
+            latest_file = sorted(files, key=lambda x: x['LastModified'])[-1]
+            latest_metadata_key = latest_file['Key']
+            break
+            
+    if not latest_metadata_key:
+        raise Exception("Could not find an active Iceberg table with data!")
+        
+    return f"s3://{bucket}/{latest_metadata_key}"
 
 
-def load_catalog(cfg, ref: str = None):
-    from pyiceberg.catalog import load_catalog
+print("Searching MinIO for the latest Iceberg metadata...")
+metadata_path = get_latest_metadata_path('warehouse', 'lakehouse/benchmark_events_')
+print(f"Found active Iceberg metadata: {metadata_path}")
 
-    cat_cfg = cfg["catalog"]
-    s3_cfg = cfg["storage"]["s3"]
+print("Starting DuckDB and installing Iceberg extensions...")
+# Initialize DuckDB connection
+con = duckdb.connect()
 
-    return load_catalog(
-        name=cat_cfg["name"],
-        **{
-            "type": "nessie",
-            "uri": cat_cfg["uri"],
-            "ref": ref or cat_cfg["ref"],
-            "warehouse": cat_cfg["warehouse"],
-            "s3.endpoint": s3_cfg["endpoint"],
-            "s3.access-key-id": s3_cfg["access_key_id"],
-            "s3.secret-access-key": s3_cfg["secret_access_key"],
-            "s3.region": s3_cfg["region"],
-            "s3.path-style-access": str(s3_cfg["path_style_access"]).lower(),
-        },
-    )
+# Install and load required extensions for S3 and Iceberg
+con.execute("INSTALL httpfs;")
+con.execute("LOAD httpfs;")
+con.execute("INSTALL iceberg;")
+con.execute("LOAD iceberg;")
 
+# Configure S3 credentials for MinIO
+con.execute("""
+    CREATE SECRET minio_secret (
+        TYPE S3,
+        KEY_ID 'minioadmin',
+        SECRET 'minioadmin',
+        ENDPOINT 'localhost:9000',
+        URL_STYLE 'path',
+        USE_SSL false
+    );
+""")
 
-def setup_duckdb_s3(cfg):
-    """Configure DuckDB httpfs for MinIO (path-style S3)."""
-    s3_cfg = cfg["storage"]["s3"]
-    con = duckdb.connect()
-    con.execute("INSTALL httpfs; LOAD httpfs;")
-    con.execute(f"""
-        SET s3_endpoint = '{s3_cfg["endpoint"].replace("http://", "")}';
-        SET s3_access_key_id = '{s3_cfg["access_key_id"]}';
-        SET s3_secret_access_key = '{s3_cfg["secret_access_key"]}';
-        SET s3_region = '{s3_cfg["region"]}';
-        SET s3_use_ssl = false;
-        SET s3_url_style = 'path';
-    """)
-    return con
+print("Querying Iceberg Table directly from MinIO...\n")
 
+# Run a query using the iceberg_scan function
+query = f"""
+    SELECT * 
+    FROM iceberg_scan('{metadata_path}')
+    LIMIT 10;
+"""
 
-def query_latest(catalog, con, table_id: str, limit: int = 20):
-    """Query the latest snapshot of a table."""
-    print(f"\n=== Latest snapshot: {table_id} ===")
-    table = catalog.load_table(table_id)
-    arrow = table.scan(limit=limit).to_arrow()
-    result = con.execute("SELECT * FROM arrow").fetchdf()
-    print(result.to_string())
-    print(f"\n{len(result)} rows | {len(result.columns)} columns")
-    return result
+result = con.execute(query).df()
+print(result)
 
-
-def query_snapshot(catalog, con, table_id: str, snapshot_id: int, limit: int = 20):
-    """Time travel: query a specific snapshot."""
-    print(f"\n=== Snapshot {snapshot_id}: {table_id} ===")
-    table = catalog.load_table(table_id)
-    arrow = table.scan(snapshot_id=snapshot_id, limit=limit).to_arrow()
-    result = con.execute("SELECT * FROM arrow").fetchdf()
-    print(result.to_string())
-    return result
-
-
-def show_snapshots(catalog, table_id: str):
-    """List all snapshots for a table (for time travel exploration)."""
-    table = catalog.load_table(table_id)
-    print(f"\n=== Snapshots for {table_id} ===")
-    for snap in table.history():
-        print(f"  Snapshot {snap.snapshot_id} | {snap.timestamp_ms} ms | parent={snap.parent_snapshot_id}")
-
-
-def run_sql(catalog, con, table_id: str, sql: str):
-    """Run an arbitrary SQL query against the table."""
-    print(f"\n=== Custom SQL ===")
-    table = catalog.load_table(table_id)
-    arrow = table.scan().to_arrow()
-    result = con.execute(f"SELECT * FROM arrow").fetchdf()
-    # Register as a view, then run the user SQL
-    con.register("tbl", arrow)
-    result = con.execute(sql.replace(table_id.split(".")[-1], "tbl")).fetchdf()
-    print(result.to_string())
-    return result
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Query Iceberg tables with DuckDB")
-    parser.add_argument("--table", default="lakehouse_db.benchmark_events", help="Table identifier")
-    parser.add_argument("--branch", default=None, help="Nessie branch to read from (default: main)")
-    parser.add_argument("--snapshot", type=int, default=None, help="Snapshot ID for time travel")
-    parser.add_argument("--snapshots", action="store_true", help="List all snapshots")
-    parser.add_argument("--limit", type=int, default=20, help="Row limit for queries")
-    parser.add_argument("--sql", default=None, help="Custom SQL query (use table name in FROM)")
-    args = parser.parse_args()
-
-    with open(CONFIG_PATH) as f:
-        cfg = yaml.safe_load(f)
-
-    catalog = load_catalog(cfg, ref=args.branch)
-    con = setup_duckdb_s3(cfg)
-
-    if args.snapshots:
-        show_snapshots(catalog, args.table)
-    elif args.snapshot:
-        query_snapshot(catalog, con, args.table, args.snapshot, limit=args.limit)
-    elif args.sql:
-        run_sql(catalog, con, args.table, args.sql)
-    else:
-        query_latest(catalog, con, args.table, limit=args.limit)
-
-
-if __name__ == "__main__":
-    main()
+# Let's also get a total count
+count_result = con.execute(f"SELECT COUNT(*) as total_events FROM iceberg_scan('{metadata_path}')").df()
+print(f"\nTotal Events in Iceberg Table: {count_result['total_events'][0]}")

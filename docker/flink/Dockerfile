@@ -12,6 +12,7 @@ ARG KAFKA_CONNECTOR_VERSION=3.3.0
 # System tools
 # ---------------------------------------------------------------------------
 RUN apt update && apt install -y nano iputils-ping curl wget python3 python3-pip python3-dev && \
+    ln -s /usr/bin/python3 /usr/bin/python && \
     rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------------------------------------
@@ -56,6 +57,14 @@ RUN curl -o /opt/flink/lib/flink-sql-connector-kafka-${KAFKA_CONNECTOR_VERSION}-
     https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka/${KAFKA_CONNECTOR_VERSION}-${FLINK_VERSION}/flink-sql-connector-kafka-${KAFKA_CONNECTOR_VERSION}-${FLINK_VERSION}.jar && \
     chown -R flink:flink /opt/flink/lib/flink-sql-connector-kafka-${KAFKA_CONNECTOR_VERSION}-${FLINK_VERSION}.jar
 
+RUN curl -o /opt/flink/lib/flink-connector-kafka-${KAFKA_CONNECTOR_VERSION}-${FLINK_VERSION}.jar \
+    https://repo1.maven.org/maven2/org/apache/flink/flink-connector-kafka/${KAFKA_CONNECTOR_VERSION}-${FLINK_VERSION}/flink-connector-kafka-${KAFKA_CONNECTOR_VERSION}-${FLINK_VERSION}.jar && \
+    chown -R flink:flink /opt/flink/lib/flink-connector-kafka-${KAFKA_CONNECTOR_VERSION}-${FLINK_VERSION}.jar
+
+RUN curl -o /opt/flink/lib/kafka-clients-3.4.0.jar \
+    https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.4.0/kafka-clients-3.4.0.jar && \
+    chown -R flink:flink /opt/flink/lib/kafka-clients-3.4.0.jar
+
 # ---------------------------------------------------------------------------
 # PostgreSQL JDBC — in separate dir for optional use
 # ---------------------------------------------------------------------------
@@ -68,7 +77,7 @@ RUN curl -o /opt/flink/lib/jdbc/postgresql-${POSTGRESQL_VERSION}.jar \
 # PyFlink — install apache-flink Python package matching the Flink version
 # ---------------------------------------------------------------------------
 RUN pip3 install --no-cache-dir apache-flink==${FLINK_VERSION} && \
-    pip3 install --no-cache-dir pyiceberg[s3fs,nessie] pyyaml
+    pip3 install --no-cache-dir pyiceberg[s3fs,nessie]==0.8.1 pyyaml
 
 # ---------------------------------------------------------------------------
 # Jobs directory — PyFlink job scripts will be mounted/copied here
@@ -76,4 +85,4 @@ RUN pip3 install --no-cache-dir apache-flink==${FLINK_VERSION} && \
 RUN mkdir -p /opt/flink/jobs && chown -R flink:flink /opt/flink/jobs
 
 # Verify PyFlink is importable
-RUN python3 -c "import pyflink; print('PyFlink OK:', pyflink.__version__)"
+RUN python3 -c "from pyflink.datastream import StreamExecutionEnvironment; print('PyFlink OK')"

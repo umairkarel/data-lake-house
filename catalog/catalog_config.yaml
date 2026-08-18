@@ -4,8 +4,8 @@
 # ---------------------------------------------------------------------------
 catalog:
   name: nessie_catalog
-  type: nessie
-  uri: http://nessie:19120/api/v1      # Nessie REST endpoint (v1 for PyIceberg compat)
+  type: rest
+  uri: http://nessie:19120/api/v1/iceberg      # Nessie Iceberg REST endpoint
   ref: main                            # Default Nessie branch
   warehouse: s3://warehouse/           # MinIO bucket where Parquet files are stored
 

@@ -28,12 +28,12 @@ from pyflink.table.types import DataTypes
 KAFKA_BROKERS = os.getenv("KAFKA_BROKERS", "kafka:9092")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "benchmark_events")
 KAFKA_GROUP_ID = os.getenv("KAFKA_GROUP_ID", "flink-lakehouse")
-KAFKA_START_OFFSET = os.getenv("KAFKA_START_OFFSET", "earliest")
+KAFKA_START_OFFSET = os.getenv("KAFKA_START_OFFSET", "earliest-offset")
 
 NESSIE_URI = os.getenv("NESSIE_URI", "http://nessie:19120/api/v1")
 NESSIE_REF = os.getenv("NESSIE_REF", "main")
 WAREHOUSE = os.getenv("WAREHOUSE", "s3://warehouse/")
-NAMESPACE = os.getenv("ICEBERG_NAMESPACE", "lakehouse_db")
+NAMESPACE = os.getenv("ICEBERG_NAMESPACE", "lakehouse")
 TABLE_NAME = os.getenv("ICEBERG_TABLE", "benchmark_events")
 
 S3_ENDPOINT = os.getenv("S3_ENDPOINT", "http://minio:9000")
@@ -50,7 +50,7 @@ def main():
     # -------------------------------------------------------------------------
     env = StreamExecutionEnvironment.get_execution_environment()
     env.enable_checkpointing(CHECKPOINT_INTERVAL_MS, CheckpointingMode.EXACTLY_ONCE)
-    env.get_checkpoint_config().set_checkpoint_storage(CHECKPOINT_PATH)
+    env.get_checkpoint_config().set_checkpoint_storage_dir(CHECKPOINT_PATH)
     env.set_parallelism(2)
 
     t_env = StreamTableEnvironment.create(
@@ -82,7 +82,8 @@ def main():
             's3.endpoint'        = '{S3_ENDPOINT}',
             's3.access-key-id'   = '{S3_ACCESS_KEY}',
             's3.secret-access-key' = '{S3_SECRET_KEY}',
-            's3.path-style-access' = 'true'
+            's3.path-style-access' = 'true',
+            'client.region'        = 'us-east-1'
         )
     """)
 

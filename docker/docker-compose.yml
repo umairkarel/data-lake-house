@@ -97,7 +97,7 @@ services:
   # Project Nessie — Git-like catalog for Iceberg tables
   # ---------------------------------------------------------------------------
   nessie:
-    image: projectnessie/nessie:latest
+    image: projectnessie/nessie:0.59.0
     container_name: lakehouse-nessie
     ports:
       - "19120:19120"
@@ -105,6 +105,8 @@ services:
       # In-memory store for local dev (data lost on restart — swap for RocksDB for persistence)
       QUARKUS_PROFILE: prod
       NESSIE_VERSION_STORE_TYPE: IN_MEMORY
+      # Enable Iceberg REST catalog API
+      NESSIE_CATALOG_DEFAULT__WAREHOUSE: s3://warehouse
     networks:
       - lakehouse
     healthcheck:
@@ -118,7 +120,7 @@ services:
   # ---------------------------------------------------------------------------
   jobmanager:
     build:
-      context: ./docker/flink
+      context: ./flink
       dockerfile: Dockerfile
     image: lakehouse-flink:1.20.0
     container_name: lakehouse-jobmanager
@@ -137,8 +139,9 @@ services:
         s3.path.style.access: true
     command: jobmanager
     volumes:
-      - ./jobs:/opt/flink/jobs          # PyFlink job scripts
-      - ./catalog:/opt/flink/catalog    # Catalog config & schema
+      - ../jobs:/opt/flink/jobs          # PyFlink job scripts
+      - ../catalog:/opt/flink/catalog    # Catalog config & schema
+      - ../nessie:/opt/flink/nessie      # Nessie branch operations
     depends_on:
       minio-init:
         condition: service_completed_successfully
@@ -170,8 +173,9 @@ services:
         s3.path.style.access: true
     command: taskmanager
     volumes:
-      - ./jobs:/opt/flink/jobs
-      - ./catalog:/opt/flink/catalog
+      - ../jobs:/opt/flink/jobs
+      - ../catalog:/opt/flink/catalog
+      - ../nessie:/opt/flink/nessie
     depends_on:
       jobmanager:
         condition: service_healthy
@@ -183,13 +187,13 @@ services:
   # Mounts the sibling project directory so you don't need to copy code
   # ---------------------------------------------------------------------------
   msg-generator:
-    image: python:3.11-slim
+    image: python:3.11
     container_name: lakehouse-msg-generator
     working_dir: /app
     ports:
       - "8090:8090"   # aiohttp REST API
     volumes:
-      - ../msgGeneratorKafka:/app   # mount the sibling project
+      - ../../msgGeneratorKafka:/app   # mount the sibling project
     environment:
       PYTHONUNBUFFERED: "1"
     command: >
