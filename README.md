@@ -12,13 +12,13 @@ A local data lakehouse built with **Python-first** tooling, replacing the origin
 | **MinIO** | S3-compatible local object storage | http://localhost:9001 |
 | **Kafka** (KRaft) | Event streaming source | — |
 | **Kafka UI** | Browse topics & messages | http://localhost:8080 |
-| **msgGeneratorKafka** | REST API to push synthetic events to Kafka | http://localhost:8090 |
+| **event-generator** | REST API & Background Task to push synthetic events | http://localhost:8090 |
 
 ## Architecture
 
 ```
-msgGeneratorKafka (REST API)
-    │  POST /generate → JSON events
+event-generator (REST API / Background)
+    │  POST /generate or Background Task → JSON events
     ▼
 Kafka (KRaft, no Zookeeper)
     │  topic: benchmark_events
@@ -32,7 +32,7 @@ Apache Iceberg Tables
 MinIO (s3://warehouse/)          ←── Nessie tracks versions / branches
     │
     ▼
-DuckDB / PyIceberg (analytics)   ←── time travel, branch reads, SQL
+DuckDB (native httpfs + iceberg) ←── direct queries against MinIO, SQL
 ```
 
 ## Quick Start
@@ -40,15 +40,22 @@ DuckDB / PyIceberg (analytics)   ←── time travel, branch reads, SQL
 ### Prerequisites
 - Docker Desktop (with WSL2 on Windows)
 - `make` (Git Bash / WSL provides this)
-- Python 3.10+ (for local analytics scripts)
+- `uv` (Fast Python package manager)
+- Python 3.10+ (for local scripts)
 
-### 1. Build the Flink image
+### 1. Configure Environment
+Copy the example config and adjust if needed:
+```bash
+cp .env.example .env
+```
+
+### 2. Build the Flink image
 ```bash
 make build
 ```
 This downloads all required JARs (Iceberg, Hadoop S3, AWS SDK, Kafka connector) into the image. Takes ~3-5 minutes on first run.
 
-### 2. Start all services
+### 3. Start all services
 ```bash
 make up
 ```
@@ -59,8 +66,10 @@ make setup-catalog
 ```
 Creates the `lakehouse_db` namespace and `benchmark_events` Iceberg table in Nessie.
 
-### 4. Generate events to Kafka
-Using the **msgGeneratorKafka** REST API (auto-started on port 8090):
+### 5. Generate events to Kafka
+The **event-generator** automatically starts pushing continuous background events to Kafka if `ACTIVE_GENERATION=true` is set in your `.env`.
+
+Alternatively, use the REST API (on port 8090):
 ```bash
 # Create Kafka topic
 curl -X POST http://localhost:8090/kafka/topic \
@@ -75,15 +84,16 @@ curl -X POST http://localhost:8090/kafka/generate \
   -d 'schema={"id":"STRING","value":"INTEGER","amount":"FLOAT","event_time":"DATETIME"}'
 ```
 
-### 5. Start the streaming job
+### 6. Start the streaming job
 ```bash
 make run-kafka-job
 ```
 Flink reads from Kafka → writes Parquet files to MinIO via Iceberg + Nessie catalog.
 
-### 6. Query the data
+### 7. Query the data
 ```bash
-# Requires: pip install pyiceberg[s3fs,nessie] duckdb pyyaml pyarrow
+# Powered by DuckDB native iceberg_scan (no PyIceberg REST catalog required)
+# Uses `uv run` to seamlessly execute script with dependencies
 make query
 ```
 
@@ -99,7 +109,7 @@ lake-house/
 │       └── Dockerfile            # Flink + PyFlink + all JARs
 │
 ├── catalog/
-│   ├── catalog_config.yaml       # Nessie + MinIO connection config
+│   ├── catalog_config.yaml       # Configuration metadata
 │   ├── schema.py                 # PyIceberg schema definitions
 │   └── setup_catalog.py          # Bootstrap: create namespace + tables
 │
@@ -111,9 +121,12 @@ lake-house/
 │   └── nessie_branches.py        # CLI: create/merge/tag Nessie branches
 │
 ├── analytics/
-│   └── query_with_duckdb.py      # DuckDB + PyIceberg: SQL queries & time travel
+│   └── query_with_duckdb.py      # DuckDB native MinIO scan queries
+│
+├── event-generator/              # Service to push continuous events to Kafka
 │
 ├── Makefile                      # Convenience commands
+├── .env.example                  # Template for MinIO/Kafka credentials
 ├── requirements.txt              # Python deps for local dev
 └── Plan.md                       # Architecture analysis & design decisions
 ```
@@ -129,8 +142,8 @@ make nessie-dev
 # Submit the Flink job pointing to the dev branch
 NESSIE_REF=dev make run-kafka-job
 
-# Query dev branch data
-python analytics/query_with_duckdb.py --branch dev
+# Query dev branch data (WIP)
+uv run python analytics/query_with_duckdb.py --branch dev
 
 # Once validated, merge dev → main
 make nessie-merge
@@ -139,11 +152,11 @@ make nessie-merge
 ## Time Travel
 
 ```bash
-# List all snapshots
-python analytics/query_with_duckdb.py --snapshots
+# List all snapshots (WIP)
+uv run python analytics/query_with_duckdb.py --snapshots
 
-# Query a specific snapshot
-python analytics/query_with_duckdb.py --snapshot 1234567890
+# Query a specific snapshot (WIP)
+uv run python analytics/query_with_duckdb.py --snapshot 1234567890
 ```
 
 ## Compaction
@@ -164,5 +177,11 @@ make compact
 | **Table creation** | `TableCreator.java` | `schema.py` + PyIceberg |
 | **Compaction** | `CompactionService.java` (Java) | `compaction.py` (PyIceberg) |
 | **Infrastructure** | Minikube (Kubernetes) | Docker Compose |
-| **Analytics** | Not implemented | DuckDB + PyIceberg |
+| **Analytics** | Not implemented | DuckDB native MinIO scan (`iceberg_scan`) |
 | **JARs required?** | Yes (Java deps) | Yes (Flink JVM runtime) — but only in Docker |
+
+---
+
+## Acknowledgments
+
+This Python-first Lakehouse architecture was heavily inspired by and adapted from the excellent Java-based implementation at **[subbota19/flinkerManager](https://github.com/subbota19/flinkerManager)**. We transitioned the core Java concepts into a fully Python-native experience using PyFlink, PyIceberg, and DuckDB.

@@ -13,7 +13,7 @@ The setup is orchestrated via `docker-compose.yml`, which spins up a network (`l
 ### Key Setup Operations:
 - **`minio-init`**: A transient container that uses the MinIO Client (`mc`) to create the `warehouse` and `flink` buckets automatically on startup.
 - **Custom Flink Image**: We build a custom Docker image (`lakehouse-flink:1.20.0`) because vanilla Flink lacks the "fat" JARs needed to connect to Kafka, Iceberg, and S3. Our Dockerfile injects `hadoop-common`, `iceberg-flink-runtime`, `flink-s3-fs-hadoop`, and Kafka clients directly into the Flink classpath (`/opt/flink/lib`).
-- **Python-First**: We use PyFlink (`kafka_to_iceberg.py`) and PyFlink SQL (`setup_catalog.py`) to orchestrate the ingestion and catalog creation, entirely bypassing the need to write Java.
+- **Python-First via uv**: We use PyFlink (`kafka_to_iceberg.py`) and PyFlink SQL (`setup_catalog.py`) to orchestrate the ingestion and catalog creation, entirely bypassing the need to write Java. We rely on `uv` to natively execute Python tools outside of Docker.
 
 ---
 
@@ -24,9 +24,9 @@ The setup is orchestrated via `docker-compose.yml`, which spins up a network (`l
 - **Why**: Handles high-throughput streaming data and decouples the message producers from the data processing engine.
 - **Kafka UI**: A web interface to monitor topics, consumer groups, and messages.
 
-### 2. msgGeneratorKafka (The Data Source)
-- **Role**: A Python REST API that generates mock JSON events and publishes them to the Kafka topic (`benchmark_events`).
-- **Why**: Simulates real-world application telemetry, IoT sensor data, or clickstream events.
+### 2. event-generator (The Data Source)
+- **Role**: A Python REST API and continuous background task that generates mock JSON events and publishes them to the Kafka topic (`benchmark_events`).
+- **Why**: Simulates real-world application telemetry, IoT sensor data, or clickstream events. Runs automatically if `ACTIVE_GENERATION=true` is set in your `.env`.
 
 ### 3. Apache Flink (The Processing Engine)
 - **Role**: A distributed stream processing engine. 
@@ -51,7 +51,7 @@ The setup is orchestrated via `docker-compose.yml`, which spins up a network (`l
 
 ## 3. Data Flow Architecture
 
-1. **Generation**: You trigger `msgGeneratorKafka` via its REST API. It serializes JSON payloads and pushes them to the `benchmark_events` Kafka topic.
+1. **Generation**: You trigger `event-generator` via its REST API or its automated background task. It serializes JSON payloads and pushes them to the `benchmark_events` Kafka topic.
 2. **Streaming Read**: Flink's Kafka SQL Connector continuously polls the Kafka topic.
 3. **Processing**: The Flink JobManager executes `kafka_to_iceberg.py`. The TaskManager parses the JSON events into Flink SQL internal rows.
 4. **Buffering & Writing**: Flink buffers the rows in memory. Periodically (e.g., every 60 seconds), Flink triggers a **Checkpoint**. 
@@ -112,5 +112,5 @@ Instead of a Python generator, connect a real PostgreSQL database.
 ### 4. Transformation with dbt
 * **Goal**: Use `dbt-trino` or `dbt-duckdb` to build a Medallion architecture (Bronze -> Silver -> Gold). Read the raw Iceberg table, clean the JSON, and write aggregates back as new Iceberg tables.
 
-### 5. DuckDB for Local Analytics
-* **Goal**: Write a simple Python Jupyter Notebook. Use `pyiceberg` and `duckdb` to read the Iceberg tables directly from MinIO into Pandas DataFrames for local ML/Analytics without needing a heavy cluster.
+### 5. DuckDB for Local Analytics (Already Implemented!)
+* **How it works**: Using `uv run python analytics/query_with_duckdb.py`, DuckDB uses its native `iceberg` and `httpfs` extensions to bypass PyIceberg's REST catalog completely. It reads credentials dynamically from your `.env` file, finds the latest metadata snapshot in MinIO, and queries the Parquet files locally on your machine.

@@ -89,11 +89,11 @@ nessie-merge: ## Merge 'dev' branch into main
 # ---------------------------------------------------------------------------
 .PHONY: query
 query: ## Query latest snapshot of benchmark_events (local DuckDB)
-	python analytics/query_with_duckdb.py
+	uv run python analytics/query_with_duckdb.py
 
 .PHONY: snapshots
 snapshots: ## List all snapshots (for time travel)
-	python analytics/query_with_duckdb.py --snapshots
+	uv run python analytics/query_with_duckdb.py --snapshots
 
 # ---------------------------------------------------------------------------
 # UI shortcuts

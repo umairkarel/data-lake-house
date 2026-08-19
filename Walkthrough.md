@@ -10,7 +10,7 @@ We have a fully functional local stack running:
 - **MinIO**: Acting as our AWS S3-compatible object storage (the `warehouse`).
 - **Nessie (0.59.0)**: Acting as the Git-like transactional catalog for Iceberg tables.
 - **Flink Cluster**: A JobManager and TaskManager with our custom `lakehouse-flink:1.20.0` image containing all necessary dependencies (Hadoop, Iceberg, Kafka connectors).
-- **Message Generator**: Your Python-based Kafka producer API (`msgGeneratorKafka`).
+- **Event Generator**: Your Python-based Kafka producer API and background task (`event-generator`).
 
 ## 2. Catalog and Table Setup
 Instead of relying on `pyiceberg` (which dropped support for Nessie's v1 native endpoints), we wrote a **PyFlink SQL script** (`setup_catalog.py`). This script executes Flink DDL to directly connect to Nessie using the Java `iceberg-nessie` catalog integration.
@@ -25,9 +25,9 @@ We adapted the Java streaming logic into a pure PyFlink script (`jobs/kafka_to_i
 - **Status**: The job was successfully submitted to the Flink JobManager and is currently **RUNNING** (`JobID: 63501c9d8df65238a84ab2ca3bd43a31`).
 
 ## 4. How to Test
-The `msg-generator` container is currently installing dependencies and starting up. Once it's ready, you can start the data flow!
+The `event-generator` container is fully configured via your `.env` file. If you set `ACTIVE_GENERATION=true`, it automatically pushes background events to Kafka every few seconds.
 
-### Step A: Generate Data
+### Step A: Generate Data (Optional if ACTIVE_GENERATION=true)
 Trigger the REST API to push messages into Kafka by passing the required schema for our table:
 
 **If using Bash / WSL / Mac:**
@@ -59,11 +59,16 @@ Invoke-RestMethod -Uri http://localhost:8090/kafka/generateMessages -Method Post
 ```
 
 ### Step B: Verify in MinIO
-Open the MinIO UI at http://localhost:9001 (Credentials: `minioadmin` / `minioadmin`).
+Open the MinIO UI at http://localhost:9001 (Credentials: configured in your `.env`, default is `minioadmin` / `minioadmin`).
 Browse to `warehouse` > `lakehouse` > `benchmark_events` to see the Iceberg `.parquet` data files and `metadata` folders appearing as Flink checkpoints occur (every 60 seconds).
 
 ### Step C: Verify via Kafka UI
 Open http://localhost:8080 to browse the incoming streaming messages in the `benchmark_events` topic.
 
-> [!TIP]
-> You can also run batch Flink SQL queries against the Iceberg table to read the data back using the Flink SQL Client inside the `lakehouse-jobmanager` container.
+### Step D: Query the Data using DuckDB
+You can query your Iceberg tables locally using native DuckDB extensions (`httpfs` + `iceberg`), which dynamically reads your MinIO credentials from `.env`.
+
+```bash
+uv run python analytics/query_with_duckdb.py
+```
+This avoids heavy Java JAR dependencies on your host machine!
