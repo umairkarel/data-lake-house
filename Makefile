@@ -85,6 +85,35 @@ nessie-merge: ## Merge 'dev' branch into main
 	docker exec $(FLINK_JM) python /opt/flink/nessie/nessie_branches.py --merge dev --into main
 
 # ---------------------------------------------------------------------------
+# Event Generation
+# ---------------------------------------------------------------------------
+COUNT ?= 100
+
+.PHONY: generate-events
+generate-events: ## Generate a specific number of events (Usage: make generate-events COUNT=1000)
+	@echo "Generating $(COUNT) events..."
+	@curl -s -X POST http://localhost:8090/kafka/generate \
+		-d 'topic_name=benchmark_events' \
+		-d 'bootstrap_servers=kafka:9092' \
+		-d 'count=$(COUNT)' \
+		-d 'parallelism=4' \
+		-d 'schema={"id":"INTEGER","value":"INTEGER","amount":"FLOAT","event_time":"DATETIME","ingestion_time":"DATETIME"}'
+	@echo "\nDone."
+
+.PHONY: generate-events-continuous
+generate-continuous: ## Continuously generate events via API (Press Ctrl+C to stop)
+	@echo "Generating events continuously... Press Ctrl+C to stop."
+	@while true; do \
+		curl -s -X POST http://localhost:8090/kafka/generate \
+			-d 'topic_name=benchmark_events' \
+			-d 'bootstrap_servers=kafka:9092' \
+			-d 'count=10' \
+			-d 'parallelism=1' \
+			-d 'schema={"id":"INTEGER","value":"INTEGER","amount":"FLOAT","event_time":"DATETIME","ingestion_time":"DATETIME"}' > /dev/null; \
+		sleep 2; \
+	done
+
+# ---------------------------------------------------------------------------
 # Analytics
 # ---------------------------------------------------------------------------
 .PHONY: query

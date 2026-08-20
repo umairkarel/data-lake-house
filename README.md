@@ -69,19 +69,13 @@ Creates the `lakehouse_db` namespace and `benchmark_events` Iceberg table in Nes
 ### 5. Generate events to Kafka
 The **event-generator** automatically starts pushing continuous background events to Kafka if `ACTIVE_GENERATION=true` is set in your `.env`.
 
-Alternatively, use the REST API (on port 8090):
+Alternatively, use the convenient Make commands (which use the REST API on port 8090):
 ```bash
-# Create Kafka topic
-curl -X POST http://localhost:8090/kafka/topic \
-  -d "topic_name=benchmark_events&bootstrap_servers=kafka:9092&num_partitions=3&replication_factor=1"
+# Generate a specific number of events (default is 100)
+make generate-events COUNT=1000
 
-# Push 1000 events with this schema
-curl -X POST http://localhost:8090/kafka/generate \
-  -d 'topic_name=benchmark_events' \
-  -d 'bootstrap_servers=kafka:9092' \
-  -d 'count=1000' \
-  -d 'parallelism=4' \
-  -d 'schema={"id":"STRING","value":"INTEGER","amount":"FLOAT","event_time":"DATETIME"}'
+# Or simulate continuous background generation from your terminal
+make generate-continuous
 ```
 
 ### 6. Start the streaming job

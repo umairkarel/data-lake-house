@@ -30,32 +30,13 @@ The `event-generator` container is fully configured via your `.env` file. If you
 ### Step A: Generate Data (Optional if ACTIVE_GENERATION=true)
 Trigger the REST API to push messages into Kafka by passing the required schema for our table:
 
-**If using Bash / WSL / Mac:**
+**If using Bash / WSL / Mac or Windows Command Prompt (with `make` installed):**
 ```bash
-curl -X POST http://localhost:8090/kafka/generateMessages \
-  -d "topic_name=benchmark_events" \
-  -d "bootstrap_servers=kafka:9092" \
-  -d 'schema={"id":"INTEGER","type":"STRING","event_time":"DATETIME"}' \
-  -d "count=100"
-```
+# Generate 100 events
+make generate-events COUNT=100
 
-**If using Windows Command Prompt (CMD):**
-```cmd
-curl -X POST http://localhost:8090/kafka/generateMessages ^
-  -d "topic_name=benchmark_events" ^
-  -d "bootstrap_servers=kafka:9092" ^
-  -d "schema={\"id\":\"INTEGER\",\"type\":\"STRING\",\"event_time\":\"DATETIME\"}" ^
-  -d "count=100"
-```
-
-```powershell
-$body = @{
-    topic_name = "benchmark_events"
-    bootstrap_servers = "kafka:9092"
-    schema = '{"id":"INTEGER","type":"STRING","event_time":"DATETIME"}'
-    count = 100
-}
-Invoke-RestMethod -Uri http://localhost:8090/kafka/generateMessages -Method Post -Body $body
+# Or run continuous generation
+make generate-continuous
 ```
 
 ### Step B: Verify in MinIO
