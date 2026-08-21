@@ -98,17 +98,40 @@ services:
   # ---------------------------------------------------------------------------
   # Project Nessie — Git-like catalog for Iceberg tables
   # ---------------------------------------------------------------------------
+  nessie-postgres:
+    image: postgres:15
+    container_name: lakehouse-nessie-postgres
+    environment:
+      POSTGRES_USER: nessie
+      POSTGRES_PASSWORD: nessiepassword
+      POSTGRES_DB: nessiedb
+    volumes:
+      - nessie-pg-data:/var/lib/postgresql/data
+    networks:
+      - lakehouse
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nessie"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   nessie:
     image: projectnessie/nessie:0.59.0
     container_name: lakehouse-nessie
     ports:
       - "19120:19120"
     environment:
-      # In-memory store for local dev (data lost on restart — swap for RocksDB for persistence)
+      # Use Postgres for persistent storage
       QUARKUS_PROFILE: prod
-      NESSIE_VERSION_STORE_TYPE: IN_MEMORY
+      NESSIE_VERSION_STORE_TYPE: JDBC
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://nessie-postgres:5432/nessiedb
+      QUARKUS_DATASOURCE_USERNAME: nessie
+      QUARKUS_DATASOURCE_PASSWORD: nessiepassword
       # Enable Iceberg REST catalog API
       NESSIE_CATALOG_DEFAULT__WAREHOUSE: s3://warehouse
+    depends_on:
+      nessie-postgres:
+        condition: service_healthy
     networks:
       - lakehouse
     healthcheck:
@@ -223,3 +246,4 @@ networks:
 volumes:
   kafka-data:
   minio-data:
+  nessie-pg-data:

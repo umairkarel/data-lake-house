@@ -6,7 +6,7 @@ ARG ICEBERG_VERSION=1.8.1
 ARG HADOOP_UBER_VERSION=2.8.3-10.0
 ARG POSTGRESQL_VERSION=42.7.1
 ARG AWS_VERSION=2.31.0
-ARG KAFKA_CONNECTOR_VERSION=3.3.0
+ARG KAFKA_CONNECTOR_VERSION=3.4.0
 
 # ---------------------------------------------------------------------------
 # System tools
@@ -53,13 +53,13 @@ RUN curl -o /opt/flink/lib/iceberg-flink-runtime-1.20-${ICEBERG_VERSION}.jar \
 # ---------------------------------------------------------------------------
 # Kafka connector — for reading from Kafka in Flink SQL / DataStream
 # ---------------------------------------------------------------------------
-RUN curl -o /opt/flink/lib/flink-sql-connector-kafka-${KAFKA_CONNECTOR_VERSION}-${FLINK_VERSION}.jar \
-    https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka/${KAFKA_CONNECTOR_VERSION}-${FLINK_VERSION}/flink-sql-connector-kafka-${KAFKA_CONNECTOR_VERSION}-${FLINK_VERSION}.jar && \
-    chown -R flink:flink /opt/flink/lib/flink-sql-connector-kafka-${KAFKA_CONNECTOR_VERSION}-${FLINK_VERSION}.jar
+RUN curl -o /opt/flink/lib/flink-sql-connector-kafka-${KAFKA_CONNECTOR_VERSION}-1.20.jar \
+    https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka/${KAFKA_CONNECTOR_VERSION}-1.20/flink-sql-connector-kafka-${KAFKA_CONNECTOR_VERSION}-1.20.jar && \
+    chown -R flink:flink /opt/flink/lib/flink-sql-connector-kafka-${KAFKA_CONNECTOR_VERSION}-1.20.jar
 
-RUN curl -o /opt/flink/lib/flink-connector-kafka-${KAFKA_CONNECTOR_VERSION}-${FLINK_VERSION}.jar \
-    https://repo1.maven.org/maven2/org/apache/flink/flink-connector-kafka/${KAFKA_CONNECTOR_VERSION}-${FLINK_VERSION}/flink-connector-kafka-${KAFKA_CONNECTOR_VERSION}-${FLINK_VERSION}.jar && \
-    chown -R flink:flink /opt/flink/lib/flink-connector-kafka-${KAFKA_CONNECTOR_VERSION}-${FLINK_VERSION}.jar
+RUN curl -o /opt/flink/lib/flink-connector-kafka-${KAFKA_CONNECTOR_VERSION}-1.20.jar \
+    https://repo1.maven.org/maven2/org/apache/flink/flink-connector-kafka/${KAFKA_CONNECTOR_VERSION}-1.20/flink-connector-kafka-${KAFKA_CONNECTOR_VERSION}-1.20.jar && \
+    chown -R flink:flink /opt/flink/lib/flink-connector-kafka-${KAFKA_CONNECTOR_VERSION}-1.20.jar
 
 RUN curl -o /opt/flink/lib/kafka-clients-3.4.0.jar \
     https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.4.0/kafka-clients-3.4.0.jar && \

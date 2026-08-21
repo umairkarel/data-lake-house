@@ -92,7 +92,7 @@ COUNT ?= 100
 .PHONY: generate-events
 generate-events: ## Generate a specific number of events (Usage: make generate-events COUNT=1000)
 	@echo "Generating $(COUNT) events..."
-	@curl -s -X POST http://localhost:8090/kafka/generate \
+	@curl -s -X POST http://localhost:8090/kafka/generateMessages \
 		-d 'topic_name=benchmark_events' \
 		-d 'bootstrap_servers=kafka:9092' \
 		-d 'count=$(COUNT)' \
@@ -104,7 +104,7 @@ generate-events: ## Generate a specific number of events (Usage: make generate-e
 generate-continuous: ## Continuously generate events via API (Press Ctrl+C to stop)
 	@echo "Generating events continuously... Press Ctrl+C to stop."
 	@while true; do \
-		curl -s -X POST http://localhost:8090/kafka/generate \
+		curl -s -X POST http://localhost:8090/kafka/generateMessages \
 			-d 'topic_name=benchmark_events' \
 			-d 'bootstrap_servers=kafka:9092' \
 			-d 'count=10' \
