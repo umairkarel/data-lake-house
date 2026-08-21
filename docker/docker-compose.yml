@@ -116,7 +116,7 @@ services:
       retries: 5
 
   nessie:
-    image: projectnessie/nessie:0.59.0
+    image: ghcr.io/projectnessie/nessie:0.100.2
     container_name: lakehouse-nessie
     ports:
       - "19120:19120"
@@ -128,7 +128,20 @@ services:
       QUARKUS_DATASOURCE_USERNAME: nessie
       QUARKUS_DATASOURCE_PASSWORD: nessiepassword
       # Enable Iceberg REST catalog API
-      NESSIE_CATALOG_DEFAULT__WAREHOUSE: s3://warehouse
+      NESSIE_CATALOG_DEFAULT_WAREHOUSE: default
+      NESSIE_CATALOG_WAREHOUSES_DEFAULT_LOCATION: s3://warehouse
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_REGION: us-east-1
+      AWS_S3_ENDPOINT: http://minio:9000
+      JAVA_OPTS_APPEND: >-
+        -Dnessie.catalog.service.s3.default-options.request-signing-enabled=false
+        -Dnessie.catalog.service.s3.default-options.endpoint=http://minio:9000
+        -Dnessie.catalog.service.s3.default-options.path-style-access=true
+        -Dnessie.catalog.service.s3.default-options.access-key=urn:nessie-secret:quarkus:nessie-catalog-secrets.s3-access-key
+        -Dnessie-catalog-secrets.s3-access-key.name=minioadmin
+        -Dnessie-catalog-secrets.s3-access-key.secret=minioadmin
+        -Dnessie.catalog.service.s3.default-options.region=us-east-1
     depends_on:
       nessie-postgres:
         condition: service_healthy

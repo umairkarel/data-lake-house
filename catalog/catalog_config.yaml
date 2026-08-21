@@ -5,7 +5,7 @@
 catalog:
   name: nessie_catalog
   type: rest
-  uri: http://nessie:19120/api/v1/iceberg      # Nessie Iceberg REST endpoint
+  uri: http://lakehouse-nessie:19120/iceberg      # Nessie Iceberg REST endpoint
   ref: main                            # Default Nessie branch
   warehouse: s3://warehouse/           # MinIO bucket where Parquet files are stored
 
@@ -21,5 +21,5 @@ storage:
 # Default namespace (database) for Iceberg tables
 # ---------------------------------------------------------------------------
 defaults:
-  namespace: lakehouse_db
+  namespace: lakehouse
   checkpoint_path: s3://flink/checkpoints

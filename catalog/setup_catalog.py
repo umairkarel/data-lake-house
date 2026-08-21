@@ -7,7 +7,7 @@ def main():
     t_env = TableEnvironment.create(env_settings)
 
     catalog_name = "nessie_catalog"
-    nessie_uri = "http://nessie:19120/api/v1" # Use native Nessie v1 API
+    nessie_uri = "http://lakehouse-nessie:19120/api/v1" # Use native Nessie v1 API
     warehouse = "s3://warehouse/"
     ref = "main"
     s3_endpoint = os.environ.get("S3_ENDPOINT", "http://minio:9000")

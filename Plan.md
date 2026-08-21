@@ -74,9 +74,9 @@ These are pure Docker/Kubernetes configs that don't care about Java vs Python:
 | Original Java thing | Python equivalent |
 |---|---|
 | `CatalogCreator.java` — reads YAML, calls `CatalogLoader` | Python dict / YAML config passed to `StreamTableEnvironment` catalog registration |
-| `TableCreator.java` — programmatic schema + partitioning via Iceberg Java API | **PyIceberg** (`pyiceberg.catalog`, `pyiceberg.schema`, `pyiceberg.transforms`) |
+| `TableCreator.java` — programmatic schema + partitioning via Iceberg Java API | **PyFlink** (`t_env.execute_sql` with DDL) |
 | `KafkaIcebergDataStreamJob.java` — DataStream API | **PyFlink** `StreamExecutionEnvironment` + Table API |
-| `CompactionService.java` — `RewriteDataFilesAction` | `pyiceberg.table.rewrite` (PyIceberg's compaction API) |
+| `CompactionService.java` — `RewriteDataFilesAction` | `compaction.py` (PyFlink + Py4J Java Gateway) |
 | `BenchmarkMessageRowDataMapper.java` — POJO → `RowData` | PyFlink `Row` / Table API handles this natively |
 | `QueryBuilder.java` — builds DDL strings | Python f-strings or PyFlink SQL DDL via `t_env.execute_sql()` |
 | Maven `pom.xml` — dependency management | `requirements.txt` / `pyproject.toml` + JAR downloads in Dockerfile |
@@ -136,12 +136,12 @@ lake-house/
 ├── jobs/                           # PyFlink job scripts (replaces Java jobs)
 │   ├── create_iceberg_table.py     # Replaces CreateIcebergTableJob.java
 │   ├── kafka_to_iceberg.py         # Replaces KafkaIcebergDataStreamJob.java
-│   └── compaction.py               # Replaces CompactionService.java
+│   ├── compaction.py               # Replaces CompactionService.java (uses Py4J)
 │
 ├── catalog/                        # Catalog management (replaces CatalogCreator + TableCreator)
 │   ├── catalog_config.yaml         # Nessie + MinIO connection config
 │   ├── schema.py                   # PyIceberg table schema definitions
-│   └── setup_catalog.py            # Create namespaces, tables via PyIceberg
+│   └── setup_catalog.py            # Create namespaces, tables via PyFlink SQL
 │
 ├── ingestion/
 │   └── kafka_producer.py           # Python Kafka producer (generate test events)
@@ -169,7 +169,7 @@ lake-house/
 | Library | Replaces | Purpose |
 |---|---|---|
 | `apache-flink` (PyFlink) | Java DataStream API | Flink jobs in Python |
-| `pyiceberg` | `CatalogLoader`, `TableCreator`, `CompactionService` | Table creation, schema, compaction, time travel |
+| `pyiceberg` | (Optional) | Schema inspection, time travel (Read-only for V2 tables with deletes) |
 | `pynessie` | None (not in original) | Nessie branch/tag operations from Python |
 | `confluent-kafka` | Separate Kafka infra project | Produce test events |
 | `duckdb` | None (he left analytics empty) | Query Iceberg tables locally |

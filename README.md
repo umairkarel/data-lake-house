@@ -105,11 +105,11 @@ lake-house/
 ├── catalog/
 │   ├── catalog_config.yaml       # Configuration metadata
 │   ├── schema.py                 # PyIceberg schema definitions
-│   └── setup_catalog.py          # Bootstrap: create namespace + tables
+│   └── setup_catalog.py          # Bootstrap: create namespace + tables via PyFlink SQL
 │
 ├── jobs/
 │   ├── kafka_to_iceberg.py       # PyFlink: Kafka → Iceberg streaming job
-│   └── compaction.py             # PyIceberg: small-file compaction
+│   └── compaction.py             # PyFlink + Py4J: small-file compaction via Java Action
 │
 ├── nessie/
 │   └── nessie_branches.py        # CLI: create/merge/tag Nessie branches
@@ -167,9 +167,9 @@ make compact
 | Decision | Original (Java) | This project (Python) |
 |---|---|---|
 | **Job code** | Java DataStream API, Maven | PyFlink Table API / SQL DDL |
-| **Catalog management** | `CatalogCreator.java` (Java Iceberg API) | `setup_catalog.py` (PyIceberg) |
-| **Table creation** | `TableCreator.java` | `schema.py` + PyIceberg |
-| **Compaction** | `CompactionService.java` (Java) | `compaction.py` (PyIceberg) |
+| **Catalog management** | `CatalogCreator.java` (Java Iceberg API) | `setup_catalog.py` (PyFlink SQL) |
+| **Table creation** | `TableCreator.java` | `setup_catalog.py` (PyFlink SQL) |
+| **Compaction** | `CompactionService.java` (Java) | `compaction.py` (PyFlink + Py4J Gateway) |
 | **Infrastructure** | Minikube (Kubernetes) | Docker Compose |
 | **Analytics** | Not implemented | DuckDB native MinIO scan (`iceberg_scan`) |
 | **JARs required?** | Yes (Java deps) | Yes (Flink JVM runtime) — but only in Docker |

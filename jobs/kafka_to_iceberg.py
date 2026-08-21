@@ -30,7 +30,7 @@ KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "benchmark_events")
 KAFKA_GROUP_ID = os.getenv("KAFKA_GROUP_ID", "flink-lakehouse")
 KAFKA_START_OFFSET = os.getenv("KAFKA_START_OFFSET", "earliest-offset")
 
-NESSIE_URI = os.getenv("NESSIE_URI", "http://nessie:19120/api/v1")
+NESSIE_URI = os.getenv("NESSIE_URI", "http://lakehouse-nessie:19120/api/v1")
 NESSIE_REF = os.getenv("NESSIE_REF", "main")
 WAREHOUSE = os.getenv("WAREHOUSE", "s3://warehouse/")
 NAMESPACE = os.getenv("ICEBERG_NAMESPACE", "lakehouse")
@@ -88,6 +88,7 @@ def main():
     """)
 
     t_env.use_catalog("nessie_catalog")
+    t_env.execute_sql(f"CREATE DATABASE IF NOT EXISTS {NAMESPACE}")
     t_env.use_database(NAMESPACE)
 
     print(f"[OK] Using catalog: nessie_catalog | database: {NAMESPACE}")
