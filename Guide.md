@@ -12,7 +12,7 @@ The setup is orchestrated via `docker-compose.yml`, which spins up a network (`l
 
 ### Key Setup Operations:
 - **`minio-init`**: A transient container that uses the MinIO Client (`mc`) to create the `warehouse` and `flink` buckets automatically on startup.
-- **Custom Flink Image**: We build a custom Docker image (`lakehouse-flink:1.20.0`) because vanilla Flink lacks the "fat" JARs needed to connect to Kafka, Iceberg, and S3. Our Dockerfile injects `hadoop-common`, `iceberg-flink-runtime`, `flink-s3-fs-hadoop`, and Kafka clients directly into the Flink classpath (`/opt/flink/lib`).
+- **Custom Flink Image**: We build a custom Docker image (`lakehouse-flink:1.20.0`) because vanilla Flink lacks the "fat" JARs needed to connect to Kafka, Iceberg, and S3. Our Dockerfile injects `hadoop-client-api`, `hadoop-client-runtime`, `iceberg-flink-runtime`, `flink-s3-fs-hadoop`, and Kafka clients directly into the Flink classpath (`/opt/flink/lib`).
 - **Python-First via uv**: We use PyFlink (`kafka_to_iceberg.py`) and PyFlink SQL (`setup_catalog.py`) to orchestrate the ingestion and catalog creation, entirely bypassing the need to write Java. We rely on `uv` to natively execute Python tools outside of Docker.
 
 ---

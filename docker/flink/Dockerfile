@@ -24,17 +24,17 @@ RUN curl -sSL https://dl.min.io/client/mc/release/linux-amd64/mc --create-dirs -
 # ---------------------------------------------------------------------------
 # S3 / Hadoop JARs  (required for Flink ↔ MinIO via s3a://)
 # ---------------------------------------------------------------------------
-RUN curl -o /opt/flink/lib/flink-s3-fs-hadoop-${FLINK_VERSION}.jar \
+RUN mkdir -p /opt/flink/plugins/s3-fs-hadoop && curl -o /opt/flink/plugins/s3-fs-hadoop/flink-s3-fs-hadoop-${FLINK_VERSION}.jar \
     https://repo1.maven.org/maven2/org/apache/flink/flink-s3-fs-hadoop/${FLINK_VERSION}/flink-s3-fs-hadoop-${FLINK_VERSION}.jar && \
-    chown flink:flink /opt/flink/lib/flink-s3-fs-hadoop-${FLINK_VERSION}.jar
+    chown -R flink:flink /opt/flink/plugins/s3-fs-hadoop
 
-RUN curl -o /opt/flink/lib/hadoop-common-${HADOOP_VERSION}.jar \
-    https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-common/${HADOOP_VERSION}/hadoop-common-${HADOOP_VERSION}.jar && \
-    chown -R flink:flink /opt/flink/lib/hadoop-common-${HADOOP_VERSION}.jar
+RUN curl -o /opt/flink/lib/hadoop-client-api-${HADOOP_VERSION}.jar \
+    https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-client-api/${HADOOP_VERSION}/hadoop-client-api-${HADOOP_VERSION}.jar && \
+    chown -R flink:flink /opt/flink/lib/hadoop-client-api-${HADOOP_VERSION}.jar
 
-RUN curl -o /opt/flink/lib/flink-shaded-hadoop-2-uber-${HADOOP_UBER_VERSION}.jar \
-    https://repo1.maven.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/${HADOOP_UBER_VERSION}/flink-shaded-hadoop-2-uber-${HADOOP_UBER_VERSION}.jar && \
-    chown -R flink:flink /opt/flink/lib/flink-shaded-hadoop-2-uber-${HADOOP_UBER_VERSION}.jar
+RUN curl -o /opt/flink/lib/hadoop-client-runtime-${HADOOP_VERSION}.jar \
+    https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-client-runtime/${HADOOP_VERSION}/hadoop-client-runtime-${HADOOP_VERSION}.jar && \
+    chown -R flink:flink /opt/flink/lib/hadoop-client-runtime-${HADOOP_VERSION}.jar
 
 # ---------------------------------------------------------------------------
 # AWS SDK v2 bundle — needed for s3a:// path-style access to MinIO

@@ -14,6 +14,10 @@ build: ## Build the custom Flink image (run once, or after Dockerfile changes)
 up: ## Start all services (builds image if not present)
 	$(COMPOSE) up -d
 
+.PHONY: restart
+restart: ## Restart all services
+	$(COMPOSE) restart
+
 .PHONY: down
 down: ## Stop and remove all containers (keeps volumes)
 	$(COMPOSE) down

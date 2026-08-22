@@ -86,7 +86,12 @@ def run_compaction(table_identifier: str):
         # Execute Action
         result = Actions.forTable(env._j_stream_execution_environment, table).rewriteDataFiles().execute()
         
+        deleted_files = len(result.deletedDataFiles())
+        added_files = len(result.addedDataFiles())
+        
         print("\n[DONE] Compaction successfully executed using Flink JVM!")
+        print(f"       Files Compacted (Old): {deleted_files}")
+        print(f"       Files Created   (New): {added_files}")
         
     except Exception as e:
         print(f"\n[ERROR] Compaction failed:")
