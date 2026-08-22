@@ -43,6 +43,16 @@ def get_latest_metadata_path(bucket, prefix):
     return f"s3://{bucket}/{latest_metadata_key}"
 
 
+import argparse
+
+parser = argparse.ArgumentParser(description="Query Iceberg tables using DuckDB")
+parser.add_argument("--snapshots", action="store_true", help="List all Iceberg snapshots")
+parser.add_argument("-n", "--limit", type=int, default=10, help="Number of rows to return")
+# Optional future args
+parser.add_argument("--branch", type=str, help="Branch name (WIP)")
+parser.add_argument("--snapshot", type=str, help="Specific snapshot ID to query (WIP)")
+args = parser.parse_args()
+
 print("Searching MinIO for the latest Iceberg metadata...")
 metadata_path = get_latest_metadata_path('warehouse', 'lakehouse/benchmark_events_')
 print(f"Found active Iceberg metadata: {metadata_path}")
@@ -74,18 +84,25 @@ con.execute(f"""
     );
 """)
 
-print("Querying Iceberg Table directly from MinIO...\n")
-
-# Run a query using the iceberg_scan function
-query = f"""
-    SELECT * 
-    FROM iceberg_scan('{metadata_path}')
-    LIMIT 10;
-"""
-
-result = con.execute(query).df()
-print(result)
-
-# Let's also get a total count
-count_result = con.execute(f"SELECT COUNT(*) as total_events FROM iceberg_scan('{metadata_path}')").df()
-print(f"\nTotal Events in Iceberg Table: {count_result['total_events'][0]}")
+if args.snapshots:
+    print("Listing Iceberg Snapshots directly from MinIO...\n")
+    query = f"""
+        SELECT snapshot_id, timestamp_ms, operation, sequence_number
+        FROM iceberg_snapshots('{metadata_path}')
+        ORDER BY timestamp_ms DESC;
+    """
+    result = con.execute(query).df()
+    print(result)
+else:
+    print(f"Querying Iceberg Table directly from MinIO (Limit: {args.limit})...\n")
+    query = f"""
+        SELECT * 
+        FROM iceberg_scan('{metadata_path}')
+        LIMIT {args.limit};
+    """
+    result = con.execute(query).df()
+    print(result)
+    
+    # Let's also get a total count
+    count_result = con.execute(f"SELECT COUNT(*) as total_events FROM iceberg_scan('{metadata_path}')").df()
+    print(f"\nTotal Events in Iceberg Table: {count_result['total_events'][0]}")

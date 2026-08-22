@@ -113,4 +113,4 @@ Instead of a Python generator, connect a real PostgreSQL database.
 * **Goal**: Use `dbt-trino` or `dbt-duckdb` to build a Medallion architecture (Bronze -> Silver -> Gold). Read the raw Iceberg table, clean the JSON, and write aggregates back as new Iceberg tables.
 
 ### 5. DuckDB for Local Analytics (Already Implemented!)
-* **How it works**: Using `uv run python analytics/query_with_duckdb.py`, DuckDB uses its native `iceberg` and `httpfs` extensions to bypass PyIceberg's REST catalog completely. It reads credentials dynamically from your `.env` file, finds the latest metadata snapshot in MinIO, and queries the Parquet files locally on your machine.
+* **How it works**: By running `cd analytics && uv run python query_with_duckdb.py`, DuckDB uses its native `iceberg` and `httpfs` extensions to bypass PyIceberg's REST catalog completely. It reads credentials dynamically from your `.env` file, finds the latest metadata snapshot in MinIO, and queries the Parquet files locally on your machine.

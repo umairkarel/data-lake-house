@@ -1,0 +1,16 @@
+[project]
+name = "lakehouse-analytics"
+version = "0.1.0"
+description = "Analytics module for our data lakehouse project"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "boto3>=1.43.56",
+    "duckdb>=1.5.5",
+    "pandas>=3.0.5",
+    "pyarrow>=14.0.0",
+    "pyiceberg[nessie,s3fs]==0.8.1",
+    "pynessie>=0.67.0",
+    "pyyaml>=6.0.3",
+    "s3fs>=2026.7.0",
+]

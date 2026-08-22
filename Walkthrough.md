@@ -50,6 +50,6 @@ Open http://localhost:8080 to browse the incoming streaming messages in the `ben
 You can query your Iceberg tables locally using native DuckDB extensions (`httpfs` + `iceberg`), which dynamically reads your MinIO credentials from `.env`.
 
 ```bash
-uv run python analytics/query_with_duckdb.py
+cd analytics && uv run python query_with_duckdb.py
 ```
 This avoids heavy Java JAR dependencies on your host machine!

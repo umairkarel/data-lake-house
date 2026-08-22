@@ -120,13 +120,15 @@ generate-continuous: ## Continuously generate events via API (Press Ctrl+C to st
 # ---------------------------------------------------------------------------
 # Analytics
 # ---------------------------------------------------------------------------
+N ?= 10
+
 .PHONY: query
-query: ## Query latest snapshot of benchmark_events (local DuckDB)
-	uv run python analytics/query_with_duckdb.py
+query: ## Query latest snapshot of benchmark_events (local DuckDB). Usage: make query N=100
+	cd analytics && uv run python query_with_duckdb.py -n $(N)
 
 .PHONY: snapshots
 snapshots: ## List all snapshots (for time travel)
-	uv run python analytics/query_with_duckdb.py --snapshots
+	cd analytics && uv run python query_with_duckdb.py --snapshots
 
 # ---------------------------------------------------------------------------
 # UI shortcuts

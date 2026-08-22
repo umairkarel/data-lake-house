@@ -137,7 +137,7 @@ make nessie-dev
 NESSIE_REF=dev make run-kafka-job
 
 # Query dev branch data (WIP)
-uv run python analytics/query_with_duckdb.py --branch dev
+cd analytics && uv run python query_with_duckdb.py --branch dev
 
 # Once validated, merge dev → main
 make nessie-merge
@@ -147,10 +147,10 @@ make nessie-merge
 
 ```bash
 # List all snapshots (WIP)
-uv run python analytics/query_with_duckdb.py --snapshots
+cd analytics && uv run python query_with_duckdb.py --snapshots
 
 # Query a specific snapshot (WIP)
-uv run python analytics/query_with_duckdb.py --snapshot 1234567890
+cd analytics && uv run python query_with_duckdb.py --snapshot 1234567890
 ```
 
 ## Compaction
