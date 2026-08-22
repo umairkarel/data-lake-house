@@ -248,6 +248,25 @@ services:
     networks:
       - lakehouse
 
+  # ---------------------------------------------------------------------------
+  # Trino — Distributed SQL Query Engine for Iceberg
+  # ---------------------------------------------------------------------------
+  trino:
+    image: trinodb/trino:latest
+    container_name: lakehouse-trino
+    ports:
+      - "8082:8082"
+    volumes:
+      - ../docker/trino/etc:/etc/trino
+    env_file: ../.env
+    depends_on:
+      nessie:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - lakehouse
+
 # ---------------------------------------------------------------------------
 # Networks & Volumes
 # ---------------------------------------------------------------------------

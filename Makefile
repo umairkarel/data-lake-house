@@ -135,6 +135,14 @@ snapshots: ## List all snapshots (for time travel)
 	cd analytics && uv run python query_with_duckdb.py --snapshots
 
 # ---------------------------------------------------------------------------
+# Trino Query Engine
+# ---------------------------------------------------------------------------
+.PHONY: trino
+trino: ## Launch Trino CLI
+	docker exec -it lakehouse-trino trino --server localhost:8082
+
+
+# ---------------------------------------------------------------------------
 # UI shortcuts
 # ---------------------------------------------------------------------------
 .PHONY: ui
@@ -143,6 +151,7 @@ ui: ## Open all UIs in browser
 	start http://localhost:8080   # Kafka UI
 	start http://localhost:9001   # MinIO
 	start http://localhost:19120  # Nessie
+	start http://localhost:8082   # Trino
 
 .PHONY: help
 help: ## Show this help
