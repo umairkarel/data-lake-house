@@ -54,6 +54,12 @@ run-kafka-job: ## Submit the Kafka → Iceberg streaming job
 		--python /opt/flink/jobs/kafka_to_iceberg.py \
 		--pyFiles /opt/flink/catalog
 
+.PHONY: run-agg-job
+run-agg-job: ## Submit the Kafka → Iceberg streaming job
+	docker exec $(FLINK_JM) flink run \
+		--python /opt/flink/jobs/agg_job.py \
+		--pyFiles /opt/flink/catalog
+
 .PHONY: flink-ui
 flink-ui: ## Open Flink Web UI
 	start http://localhost:8081
