@@ -1,7 +1,7 @@
 """
 compaction.py
 -------------
-Runs Iceberg small-file compaction on the benchmark_events table using PyFlink + Py4J.
+Runs Iceberg small-file compaction on the order_events table using PyFlink + Py4J.
 
 This replaces CompactionService.java (RewriteDataFilesAction) from the original project.
 It uses Flink's Java `RewriteDataFilesAction` under the hood via the Py4J gateway,
@@ -9,7 +9,7 @@ which natively supports compacting V2 tables containing equality deletes!
 
 Usage:
     python jobs/compaction.py
-    python jobs/compaction.py --table lakehouse.benchmark_events
+    python jobs/compaction.py --table lakehouse.order_events
 """
 
 import argparse
@@ -103,7 +103,7 @@ def main():
     parser = argparse.ArgumentParser(description="Iceberg table compaction via PyFlink Java Gateway")
     parser.add_argument(
         "--table",
-        default="lakehouse.benchmark_events",
+        default="lakehouse.order_events",
         help="Table identifier in format namespace.table_name",
     )
     args = parser.parse_args()

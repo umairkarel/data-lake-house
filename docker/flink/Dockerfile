@@ -77,7 +77,7 @@ RUN curl -o /opt/flink/lib/jdbc/postgresql-${POSTGRESQL_VERSION}.jar \
 # PyFlink — install apache-flink Python package matching the Flink version
 # ---------------------------------------------------------------------------
 RUN pip3 install --no-cache-dir apache-flink==${FLINK_VERSION} && \
-    pip3 install --no-cache-dir pyiceberg[s3fs,nessie]==0.8.1 pyyaml
+    pip3 install --no-cache-dir pyiceberg[s3fs,nessie]==0.8.1 pyyaml pynessie "marshmallow<4.0.0"
 
 # ---------------------------------------------------------------------------
 # Jobs directory — PyFlink job scripts will be mounted/copied here

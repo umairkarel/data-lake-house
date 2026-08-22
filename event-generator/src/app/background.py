@@ -1,11 +1,10 @@
 import os
 import asyncio
-from json import dumps
 import random
 
-from app.core.asyncio_generator import AsyncioGenerator
-from app.core.generator import MessageGenerator
+from app.core.order_generator import OrderEventGenerator
 from app.providers.kafka.managers.aio_producer_manager import AIOKafkaProducerManager
+
 
 async def continuous_generation_task(app):
     is_active = os.environ.get("ACTIVE_GENERATION", "false").lower() == "true"
@@ -13,21 +12,13 @@ async def continuous_generation_task(app):
         print("ACTIVE_GENERATION is false. Background continuous generation is disabled.")
         return
 
-    topic_name = os.environ.get("KAFKA_TOPIC", "benchmark_events")
-    bootstrap_servers = os.environ.get("KAFKA_BROKER", "kafka:9092")
-    interval = float(os.environ.get("GENERATION_INTERVAL_SEC", "2.0"))
-    
-    # We use the schema that matches the lakehouse table: 
-    # id=INTEGER, value=INTEGER, amount=FLOAT, event_time=DATETIME, ingestion_time=DATETIME
-    schema = {
-        "id": "INTEGER",
-        "value": "INTEGER", 
-        "amount": "FLOAT",
-        "event_time": "DATETIME",
-        "ingestion_time": "DATETIME"
-    }
+    topic_name        = os.environ.get("KAFKA_TOPIC",              "order_events")
+    bootstrap_servers = os.environ.get("KAFKA_BROKER",             "kafka:9092")
+    interval          = float(os.environ.get("GENERATION_INTERVAL_SEC", "2.0"))
 
-    print(f"Starting continuous generation to topic '{topic_name}' every {interval} seconds...")
+    print(f"Starting continuous order-event generation to topic '{topic_name}' every {interval}s...")
+
+    generator = OrderEventGenerator()
 
     producer = AIOKafkaProducerManager(
         bootstrap_servers=bootstrap_servers,
@@ -37,31 +28,29 @@ async def continuous_generation_task(app):
 
     try:
         while True:
-            # We will generate a small batch of 1 to 5 records each time
-            count = random.randint(1, 5)
-            msg_generator = MessageGenerator(schema=schema, count=count, unique=True)
-            
-            generator = AsyncioGenerator(
-                producer=producer,
-                message_generator=msg_generator,
-                parallelism=1,
-                time_period=1,
-                session_window=1,
-                topic_name=topic_name,
-                topic_key=None,
-            )
-            
-            print(f"Generating {count} background events to '{topic_name}'...")
-            await generator.generate()
+            count  = random.randint(1, 5)
+            events = generator.generate_batch(count)
+
+            print(f"Generating {count} order events to '{topic_name}'...")
+
+            for event in events:
+                await producer.publish_msg(
+                    topic=topic_name,
+                    value=event,
+                    key=event.get("order_id"),   # partition by order_id for ordering
+                )
+
             await asyncio.sleep(interval)
-            
+
     except asyncio.CancelledError:
         print("Continuous generation task cancelled.")
     except Exception as e:
         print(f"Error in continuous generation task: {e}")
 
+
 async def start_background_tasks(app):
     app['continuous_generation'] = asyncio.create_task(continuous_generation_task(app))
+
 
 async def cleanup_background_tasks(app):
     app['continuous_generation'].cancel()

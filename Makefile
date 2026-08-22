@@ -70,7 +70,7 @@ cancel-job: ## Cancel a running job (JOB_ID=<id>)
 # Compaction
 # ---------------------------------------------------------------------------
 .PHONY: compact
-compact: ## Run Iceberg compaction on benchmark_events
+compact: ## Run Iceberg compaction on order_events
 	docker exec $(FLINK_JM) python /opt/flink/jobs/compaction.py
 
 # ---------------------------------------------------------------------------
@@ -80,13 +80,20 @@ compact: ## Run Iceberg compaction on benchmark_events
 nessie-list: ## List Nessie branches and tags
 	docker exec $(FLINK_JM) python /opt/flink/nessie/nessie_branches.py --list
 
-.PHONY: nessie-dev
-nessie-dev: ## Create a 'dev' branch from main
-	docker exec $(FLINK_JM) python /opt/flink/nessie/nessie_branches.py --create dev
+BRANCH ?= dev
+
+.PHONY: nessie-create
+nessie-create: ## Create a branch from main (Usage: make nessie-create-branch BRANCH=my-branch)
+	docker exec $(FLINK_JM) python /opt/flink/nessie/nessie_branches.py --create $(BRANCH)
+
+.PHONY: nessie-delete
+nessie-delete: ## Create a branch from main (Usage: make nessie-create-branch BRANCH=my-branch)
+	docker exec $(FLINK_JM) python /opt/flink/nessie/nessie_branches.py --delete $(BRANCH)
+
 
 .PHONY: nessie-merge
-nessie-merge: ## Merge 'dev' branch into main
-	docker exec $(FLINK_JM) python /opt/flink/nessie/nessie_branches.py --merge dev --into main
+nessie-merge: ## Merge a branch into main (Usage: make nessie-merge BRANCH=my-branch)
+	docker exec $(FLINK_JM) python /opt/flink/nessie/nessie_branches.py --merge $(BRANCH) --into main
 
 # ---------------------------------------------------------------------------
 # Event Generation
@@ -94,28 +101,25 @@ nessie-merge: ## Merge 'dev' branch into main
 COUNT ?= 100
 
 .PHONY: generate-events
-generate-events: ## Generate a specific number of events (Usage: make generate-events COUNT=1000)
-	@echo "Generating $(COUNT) events..."
+generate-events: ## Generate N order_events via REST API (Usage: make generate-events COUNT=500)
+	@echo "Generating $(COUNT) order events..."
 	@curl -s -X POST http://localhost:8090/kafka/generateMessages \
-		-d 'topic_name=benchmark_events' \
+		-d 'topic_name=order_events' \
 		-d 'bootstrap_servers=kafka:9092' \
-		-d 'count=$(COUNT)' \
-		-d 'parallelism=4' \
-		-d 'schema={"id":"INTEGER","value":"INTEGER","amount":"FLOAT","event_time":"DATETIME","ingestion_time":"DATETIME"}'
-	@echo "\nDone."
+		-d 'count=$(COUNT)' | python -m json.tool
+	@echo "Done."
 
-.PHONY: generate-events-continuous
-generate-continuous: ## Continuously generate events via API (Press Ctrl+C to stop)
-	@echo "Generating events continuously... Press Ctrl+C to stop."
-	@while true; do \
-		curl -s -X POST http://localhost:8090/kafka/generateMessages \
-			-d 'topic_name=benchmark_events' \
-			-d 'bootstrap_servers=kafka:9092' \
-			-d 'count=10' \
-			-d 'parallelism=1' \
-			-d 'schema={"id":"INTEGER","value":"INTEGER","amount":"FLOAT","event_time":"DATETIME","ingestion_time":"DATETIME"}' > /dev/null; \
-		sleep 2; \
-	done
+.PHONY: enable-generation
+enable-generation: ## Set ACTIVE_GENERATION=true in .env and restart the event-generator
+	@powershell -Command "(Get-Content .env) -replace 'ACTIVE_GENERATION=false','ACTIVE_GENERATION=true' | Set-Content .env"
+	$(COMPOSE) up -d event-generator
+	@echo "Background generation enabled."
+
+.PHONY: disable-generation
+disable-generation: ## Set ACTIVE_GENERATION=false in .env and restart the event-generator
+	@powershell -Command "(Get-Content .env) -replace 'ACTIVE_GENERATION=true','ACTIVE_GENERATION=false' | Set-Content .env"
+	$(COMPOSE) up -d event-generator
+	@echo "Background generation disabled."
 
 # ---------------------------------------------------------------------------
 # Analytics
@@ -123,7 +127,7 @@ generate-continuous: ## Continuously generate events via API (Press Ctrl+C to st
 N ?= 10
 
 .PHONY: query
-query: ## Query latest snapshot of benchmark_events (local DuckDB). Usage: make query N=100
+query: ## Query latest snapshot of order_events (local DuckDB). Usage: make query N=100
 	cd analytics && uv run python query_with_duckdb.py -n $(N)
 
 .PHONY: snapshots

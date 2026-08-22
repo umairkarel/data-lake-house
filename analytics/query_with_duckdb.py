@@ -53,8 +53,8 @@ parser.add_argument("--branch", type=str, help="Branch name (WIP)")
 parser.add_argument("--snapshot", type=str, help="Specific snapshot ID to query (WIP)")
 args = parser.parse_args()
 
-print("Searching MinIO for the latest Iceberg metadata...")
-metadata_path = get_latest_metadata_path('warehouse', 'lakehouse/benchmark_events_')
+print("Searching MinIO for the latest Iceberg metadata (table: order_events)...")
+metadata_path = get_latest_metadata_path('warehouse', 'lakehouse/order_events_')
 print(f"Found active Iceberg metadata: {metadata_path}")
 
 print("Starting DuckDB and installing Iceberg extensions...")

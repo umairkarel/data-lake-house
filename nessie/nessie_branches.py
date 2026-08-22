@@ -32,10 +32,10 @@ def load_config():
 def get_client(cfg):
     from pynessie import init
 
-    nessie_uri = cfg["catalog"]["uri"]
-    # pynessie init takes the base URL (without /api/v1)
-    base_url = nessie_uri.replace("/api/v1", "")
-    client = init(endpoint=nessie_uri)
+    # The config URI is for Iceberg REST (e.g. /iceberg)
+    # But pynessie needs the Nessie native API (e.g. /api/v1)
+    nessie_uri = cfg["catalog"]["uri"].replace("/iceberg", "/api/v1")
+    client = init(config_dict={"endpoint": nessie_uri})
     return client
 
 
@@ -53,7 +53,7 @@ def create_branch(client, branch_name: str, from_branch: str = "main"):
         print(f"[ERROR] Source branch '{from_branch}' not found.")
         return
 
-    client.create_branch(branch_name, source.hash_)
+    client.create_branch(branch_name, ref=from_branch, hash_on_ref=source.hash_)
     print(f"[OK] Branch '{branch_name}' created from '{from_branch}' @ {source.hash_}")
 
 
@@ -84,7 +84,7 @@ def create_tag(client, tag_name: str, from_branch: str = "main"):
         print(f"[ERROR] Branch '{from_branch}' not found.")
         return
 
-    client.create_tag(tag_name, source.hash_)
+    client.create_tag(tag_name, ref=from_branch, hash_on_ref=source.hash_)
     print(f"[OK] Tag '{tag_name}' created at {source.hash_}")
 
 

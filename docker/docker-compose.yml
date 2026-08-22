@@ -237,8 +237,7 @@ services:
     env_file: ../.env
     environment:
       PYTHONUNBUFFERED: "1"
-      ACTIVE_GENERATION: "false"
-      KAFKA_TOPIC: "benchmark_events"
+      KAFKA_TOPIC: "order_events"
       KAFKA_BROKER: "kafka:9092"
       GENERATION_INTERVAL_SEC: "2.0"
     command: >
