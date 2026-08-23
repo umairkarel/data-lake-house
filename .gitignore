@@ -25,6 +25,7 @@ kafka-data/
 *.csv
 *.json
 !**/example*.json
+!seeds/*.csv
 
 # OS
 .DS_Store

@@ -18,6 +18,10 @@ up: ## Start all services (builds image if not present)
 restart: ## Restart all services
 	$(COMPOSE) restart
 
+.PHONY: restart-flink
+restart-flink: ## Restart all services
+	docker restart lakehouse-jobmanager
+
 .PHONY: down
 down: ## Stop and remove all containers (keeps volumes)
 	$(COMPOSE) down
@@ -55,14 +59,16 @@ run-kafka-job: ## Submit the Kafka → Iceberg streaming job
 		--pyFiles /opt/flink/catalog
 
 .PHONY: run-agg-job
-run-agg-job: ## Submit the Kafka → Iceberg streaming job
+run-agg-job: ## Submit the Flink window aggregation job
 	docker exec $(FLINK_JM) flink run \
 		--python /opt/flink/jobs/agg_job.py \
 		--pyFiles /opt/flink/catalog
 
-.PHONY: flink-ui
-flink-ui: ## Open Flink Web UI
-	start http://localhost:8081
+.PHONY: run-join-job
+run-join-job: ## Submit the Kafka → Iceberg streaming job
+	docker exec $(FLINK_JM) flink run \
+		--python /opt/flink/jobs/join_job.py \
+		--pyFiles /opt/flink/catalog
 
 .PHONY: jobs
 jobs: ## List running Flink jobs
@@ -75,9 +81,12 @@ cancel-job: ## Cancel a running job (JOB_ID=<id>)
 # ---------------------------------------------------------------------------
 # Compaction
 # ---------------------------------------------------------------------------
+TABLE ?= lakehouse.order_events
+REF ?= main
+
 .PHONY: compact
-compact: ## Run Iceberg compaction on order_events
-	docker exec $(FLINK_JM) python /opt/flink/jobs/compaction.py
+compact: ## Run Iceberg compaction on a table (default: lakehouse.order_events on main branch)
+	docker exec $(FLINK_JM) python /opt/flink/jobs/compaction.py --table $(TABLE) --ref $(REF)
 
 # ---------------------------------------------------------------------------
 # Nessie branches
@@ -107,25 +116,25 @@ nessie-merge: ## Merge a branch into main (Usage: make nessie-merge BRANCH=my-br
 COUNT ?= 100
 
 .PHONY: generate-events
-generate-events: ## Generate N order_events via REST API (Usage: make generate-events COUNT=500)
-	@echo "Generating $(COUNT) order events..."
-	@curl -s -X POST http://localhost:8090/kafka/generateMessages \
-		-d 'topic_name=order_events' \
-		-d 'bootstrap_servers=kafka:9092' \
-		-d 'count=$(COUNT)' | python -m json.tool
-	@echo "Done."
-
-.PHONY: enable-generation
-enable-generation: ## Set ACTIVE_GENERATION=true in .env and restart the event-generator
+generate-events: ## Generate events. Use COUNT=N for batch. Use active=true to enable continuous background generation.
+ifeq ($(active),true)
 	@powershell -Command "(Get-Content .env) -replace 'ACTIVE_GENERATION=false','ACTIVE_GENERATION=true' | Set-Content .env"
 	$(COMPOSE) up -d event-generator
 	@echo "Background generation enabled."
+else
+	@echo "Generating $(COUNT) order events..."
+	@curl -s -X POST http://localhost:8090/kafka/generateMessages \
+		-d "topic_name=order_events" \
+		-d "bootstrap_servers=kafka:9092" \
+		-d "count=$(COUNT)" | python -m json.tool
+	@echo "Done."
+endif
 
-.PHONY: disable-generation
-disable-generation: ## Set ACTIVE_GENERATION=false in .env and restart the event-generator
+.PHONY: pause-active-events
+pause-active-events: ## Set ACTIVE_GENERATION=false in .env and restart the event-generator
 	@powershell -Command "(Get-Content .env) -replace 'ACTIVE_GENERATION=true','ACTIVE_GENERATION=false' | Set-Content .env"
 	$(COMPOSE) up -d event-generator
-	@echo "Background generation disabled."
+	@echo "Background generation paused."
 
 # ---------------------------------------------------------------------------
 # Analytics
@@ -151,6 +160,10 @@ trino: ## Launch Trino CLI
 # ---------------------------------------------------------------------------
 # UI shortcuts
 # ---------------------------------------------------------------------------
+.PHONY: flink-ui
+flink-ui: ## Open Flink Web UI
+	start http://localhost:8081
+
 .PHONY: ui
 ui: ## Open all UIs in browser
 	start http://localhost:8081   # Flink

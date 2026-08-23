@@ -181,6 +181,7 @@ services:
       - ../jobs:/opt/flink/jobs          # PyFlink job scripts
       - ../catalog:/opt/flink/catalog    # Catalog config & schema
       - ../nessie:/opt/flink/nessie      # Nessie branch operations
+      - ../seeds:/opt/flink/seeds
     depends_on:
       minio-init:
         condition: service_completed_successfully
@@ -216,6 +217,7 @@ services:
       - ../jobs:/opt/flink/jobs
       - ../catalog:/opt/flink/catalog
       - ../nessie:/opt/flink/nessie
+      - ../seeds:/opt/flink/seeds
     depends_on:
       jobmanager:
         condition: service_healthy

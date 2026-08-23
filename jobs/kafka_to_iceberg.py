@@ -51,7 +51,7 @@ def main():
     env = StreamExecutionEnvironment.get_execution_environment()
     env.enable_checkpointing(CHECKPOINT_INTERVAL_MS, CheckpointingMode.EXACTLY_ONCE)
     env.get_checkpoint_config().set_checkpoint_storage_dir(CHECKPOINT_PATH)
-    env.set_parallelism(2)
+    env.set_parallelism(1)
 
     t_env = StreamTableEnvironment.create(
         stream_execution_environment=env,

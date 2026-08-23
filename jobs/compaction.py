@@ -20,7 +20,7 @@ from pyflink.java_gateway import get_gateway
 
 CONFIG_PATH = Path(__file__).parent.parent / "catalog" / "catalog_config.yaml"
 
-def run_compaction(table_identifier: str):
+def run_compaction(table_identifier: str, nessie_ref: str = "main"):
     """
     Compact small Parquet files in an Iceberg table via Flink's RewriteDataFilesAction.
     """
@@ -44,8 +44,8 @@ def run_compaction(table_identifier: str):
         HashMap = gateway.jvm.java.util.HashMap
         props = HashMap()
         props.put("type", "rest")
-        props.put("uri", cat_cfg["uri"])
-        props.put("ref", cat_cfg.get("ref", "main"))
+        props.put("uri", f"{cat_cfg['uri']}/{nessie_ref}")
+        props.put("ref", nessie_ref)
         props.put("warehouse", cat_cfg["warehouse"])
         props.put("s3.endpoint", s3_cfg["endpoint"])
         props.put("s3.access-key-id", s3_cfg["access_key_id"])
@@ -106,9 +106,14 @@ def main():
         default="lakehouse.order_events",
         help="Table identifier in format namespace.table_name",
     )
+    parser.add_argument(
+        "--ref",
+        default="main",
+        help="Nessie branch reference (e.g. main, dev)",
+    )
     args = parser.parse_args()
 
-    run_compaction(table_identifier=args.table)
+    run_compaction(table_identifier=args.table, nessie_ref=args.ref)
 
 
 if __name__ == "__main__":
