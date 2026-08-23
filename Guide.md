@@ -97,9 +97,9 @@ env.get_checkpoint_config().set_checkpoint_storage_dir("s3a://flink/checkpoints"
 
 You now have a production-grade skeleton. Here are the logical next steps to extend your knowledge and the platform:
 
-### 1. Add an OLAP Query Engine (Trino or Presto)
-Currently, you can query data via Flink SQL. Adding **Trino** via Docker allows you to run blazing-fast, distributed BI queries using standard SQL. Trino connects directly to Nessie and MinIO, completely independent of Flink.
-* **Goal**: Spin up Trino in docker-compose, configure a Nessie catalog, and query `lakehouse.benchmark_events` using DBeaver.
+### 1. Trino vs. DuckDB (Why Trino?)
+We use **Trino** via Docker to run blazing-fast, distributed BI queries using standard SQL. Trino connects directly to Nessie and MinIO.
+* **Why not DuckDB?**: DuckDB's `iceberg` extension only reads raw metadata/parquet files from S3 paths. It cannot communicate with a REST Catalog like Nessie, meaning it cannot understand Nessie branches (`@dev`), tags, or time-travel logic natively. Trino has a native Nessie connector (`iceberg.catalog.type=nessie`) that fully understands branches and dynamically resolves the correct metadata location without hardcoded S3 paths.
 
 ### 2. Implement Data Branching (WAP Pattern)
 Because we use Nessie, you have "Git for Data".
@@ -112,5 +112,5 @@ Instead of a Python generator, connect a real PostgreSQL database.
 ### 4. Transformation with dbt
 * **Goal**: Use `dbt-trino` or `dbt-duckdb` to build a Medallion architecture (Bronze -> Silver -> Gold). Read the raw Iceberg table, clean the JSON, and write aggregates back as new Iceberg tables.
 
-### 5. DuckDB for Local Analytics (Already Implemented!)
-* **How it works**: By running `cd analytics && uv run python query_with_duckdb.py`, DuckDB uses its native `iceberg` and `httpfs` extensions to bypass PyIceberg's REST catalog completely. It reads credentials dynamically from your `.env` file, finds the latest metadata snapshot in MinIO, and queries the Parquet files locally on your machine.
+### 5. DuckDB for Local Analytics (Legacy/Experimental)
+* **How it works**: By running `cd analytics && uv run python query_with_duckdb.py`, DuckDB uses its native `iceberg` and `httpfs` extensions to bypass PyIceberg's REST catalog completely. It reads credentials dynamically from your `.env` file, finds the latest metadata snapshot in MinIO, and queries the Parquet files locally on your machine. *Note: this approach is limited as it bypasses Nessie branch logic.*

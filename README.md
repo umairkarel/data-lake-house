@@ -13,6 +13,7 @@ A local data lakehouse built with **Python-first** tooling, replacing the origin
 | **Kafka** (KRaft) | Event streaming source | — |
 | **Kafka UI** | Browse topics & messages | http://localhost:8080 |
 | **event-generator** | REST API & Background Task to push synthetic events | http://localhost:8090 |
+| **Trino** | Distributed SQL Query Engine (Nessie Catalog integrated) | http://localhost:8082 |
 
 ## Architecture
 
@@ -32,7 +33,7 @@ Apache Iceberg Tables
 MinIO (s3://warehouse/)          ←── Nessie tracks versions / branches
     │
     ▼
-DuckDB (native httpfs + iceberg) ←── direct queries against MinIO, SQL
+Trino (Distributed SQL Engine)   ←── connects to Nessie REST Catalog (`lakehouse.properties`)
 ```
 
 ## Quick Start
@@ -86,10 +87,11 @@ Flink reads from Kafka → writes Parquet files to MinIO via Iceberg + Nessie ca
 
 ### 7. Query the data
 ```bash
-# Powered by DuckDB native iceberg_scan (no PyIceberg REST catalog required)
-# Uses `uv run` to seamlessly execute script with dependencies
-make query
+# Powered by Trino connecting natively to Nessie Catalog
+# This drops you into the Trino interactive CLI
+make trino
 ```
+*(You can also use DBeaver or access the Trino Web UI at `http://localhost:8082`)*
 
 ---
 
@@ -115,7 +117,7 @@ lake-house/
 │   └── nessie_branches.py        # CLI: create/merge/tag Nessie branches
 │
 ├── analytics/
-│   └── query_with_duckdb.py      # DuckDB native MinIO scan queries
+│   └── query_with_duckdb.py      # (Legacy/Experimental) DuckDB native MinIO scan queries
 │
 ├── event-generator/              # Service to push continuous events to Kafka
 │
@@ -136,8 +138,8 @@ make nessie-dev
 # Submit the Flink job pointing to the dev branch
 NESSIE_REF=dev make run-kafka-job
 
-# Query dev branch data (WIP)
-cd analytics && uv run python query_with_duckdb.py --branch dev
+# Query dev branch data
+# In Trino: USE lakehouse.lakehouse@dev; SELECT * FROM order_events;
 
 # Once validated, merge dev → main
 make nessie-merge
@@ -146,11 +148,12 @@ make nessie-merge
 ## Time Travel
 
 ```bash
-# List all snapshots (WIP)
-cd analytics && uv run python query_with_duckdb.py --snapshots
+# Trino natively supports querying Iceberg history via system tables
+# List snapshots:
+# SELECT * FROM lakehouse.lakehouse."order_events$snapshots";
 
-# Query a specific snapshot (WIP)
-cd analytics && uv run python query_with_duckdb.py --snapshot 1234567890
+# Query a specific snapshot:
+# SELECT * FROM lakehouse.lakehouse.order_events FOR VERSION AS OF 1234567890;
 ```
 
 ## Compaction
@@ -171,7 +174,7 @@ make compact
 | **Table creation** | `TableCreator.java` | `setup_catalog.py` (PyFlink SQL) |
 | **Compaction** | `CompactionService.java` (Java) | `compaction.py` (PyFlink + Py4J Gateway) |
 | **Infrastructure** | Minikube (Kubernetes) | Docker Compose |
-| **Analytics** | Not implemented | DuckDB native MinIO scan (`iceberg_scan`) |
+| **Analytics** | Not implemented | Trino distributed SQL (fully integrated with Nessie) |
 | **JARs required?** | Yes (Java deps) | Yes (Flink JVM runtime) — but only in Docker |
 
 ---

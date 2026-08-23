@@ -10,6 +10,7 @@ We have a fully functional local stack running:
 - **MinIO**: Acting as our AWS S3-compatible object storage (the `warehouse`).
 - **Nessie (0.59.0)**: Acting as the Git-like transactional catalog for Iceberg tables.
 - **Flink Cluster**: A JobManager and TaskManager with our custom `lakehouse-flink:1.20.0` image containing all necessary dependencies (Hadoop, Iceberg, Kafka connectors).
+- **Trino**: A distributed SQL query engine mapped natively to the Nessie catalog for analytics.
 - **Event Generator**: Your Python-based Kafka producer API and background task (`event-generator`).
 
 ## 2. Catalog and Table Setup
@@ -46,10 +47,17 @@ Browse to `warehouse` > `lakehouse` > `benchmark_events` to see the Iceberg `.pa
 ### Step C: Verify via Kafka UI
 Open http://localhost:8080 to browse the incoming streaming messages in the `benchmark_events` topic.
 
-### Step D: Query the Data using DuckDB
-You can query your Iceberg tables locally using native DuckDB extensions (`httpfs` + `iceberg`), which dynamically reads your MinIO credentials from `.env`.
+### Step D: Query the Data using Trino
+We configured Trino to connect natively to the Nessie REST API, giving you full access to Git-for-data branching and time travel.
 
+Drop into the Trino CLI:
 ```bash
-cd analytics && uv run python query_with_duckdb.py
+make trino
 ```
-This avoids heavy Java JAR dependencies on your host machine!
+
+Then run standard SQL:
+```sql
+USE lakehouse.lakehouse;
+SELECT * FROM benchmark_events LIMIT 10;
+```
+*(Alternatively, you can connect visual tools like DBeaver to `localhost:8082`)*
