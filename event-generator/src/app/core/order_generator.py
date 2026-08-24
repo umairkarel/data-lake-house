@@ -160,6 +160,9 @@ class OrderEventGenerator:
         # rolling buffer of recent event_ids for duplicate injection
         self._recent_event_ids: deque = deque(maxlen=100)
 
+        # buffer for holding events that will be emitted out of order
+        self._out_of_order_buffer: deque = deque()
+
         # flash-sale timer
         self._last_flash_sale: Optional[datetime] = None
 
@@ -181,6 +184,13 @@ class OrderEventGenerator:
 
     def generate_event(self) -> Dict[str, Any]:
         """Return one order_events payload, applying active scenarios."""
+        # 0. Out-of-order event emission
+        if self._out_of_order_buffer and random.random() < 0.3:
+            payload = self._out_of_order_buffer.popleft()
+            # Still count this as a normal event generation for stats purposes
+            self.stats.record_normal()
+            return payload
+
         # 1. Duplicate injection (uses a previously emitted event_id)
         dup_cfg = SCENARIOS["duplicate_events"]
         if (
@@ -309,6 +319,79 @@ class OrderEventGenerator:
             next_status = "cancelled"
         else:
             next_status = possible[0]  # always the "happy path" first element
+
+        # Check out-of-order scenario
+        ooo_cfg = lc_cfg.get("out_of_order_events", {"enabled": False})
+        if ooo_cfg["enabled"] and random.random() < ooo_cfg["pct"]:
+            # We want to emit the NEXT state, but buffer THIS state.
+            # Example: current=placed. next_status=payment_pending. 
+            # We buffer payment_pending, and immediately jump to paid and emit it.
+            
+            # 1. Build the payload for the current next_status (e.g. payment_pending)
+            buffered_event_id = str(uuid.uuid4())
+            buffered_event_time = self._make_event_time(region=order["region"])
+            
+            buffered_payload = {
+                "event_id":    buffered_event_id,
+                "order_id":    order_id,
+                "user_id":     order["user_id"],
+                "product_id":  order["product_id"],
+                "category":    order["category"],
+                "status":      next_status,
+                "quantity":    order["quantity"],
+                "unit_price":  order["unit_price"],
+                "total_amount": order["total_amount"],
+                "discount_pct": order["discount_pct"],
+                "region":      order["region"],
+                "platform":    order["platform"],
+                "event_time":  buffered_event_time,
+            }
+            self._out_of_order_buffer.append(buffered_payload)
+            
+            # 2. Update internal state to next_status
+            order["status"] = next_status
+            if next_status in TERMINAL_STATUSES:
+                # If the buffered event was terminal, we can't advance further.
+                # Just return a new order to avoid breaking things.
+                del self._inflight[order_id]
+                return self._build_new_order()
+                
+            # 3. Determine the status AFTER next_status (e.g. paid)
+            future_possible = STATUS_TRANSITIONS[next_status]
+            future_status = future_possible[0] # happy path
+            
+            # 4. Generate the payload for the future status
+            order["status"] = future_status
+            if future_status in TERMINAL_STATUSES:
+                del self._inflight[order_id]
+                
+            future_event_id = str(uuid.uuid4())
+            # Use a slightly later event time so the stream sees out-of-order timestamps
+            # e.g., buffered event = 10:00:00, future event = 10:00:02
+            future_event_time = (
+                datetime.strptime(buffered_event_time, "%Y-%m-%d %H:%M:%S.%f") 
+                + timedelta(seconds=random.uniform(1, 5))
+            ).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            
+            future_payload = {
+                "event_id":    future_event_id,
+                "order_id":    order_id,
+                "user_id":     order["user_id"],
+                "product_id":  order["product_id"],
+                "category":    order["category"],
+                "status":      future_status,
+                "quantity":    order["quantity"],
+                "unit_price":  order["unit_price"],
+                "total_amount": order["total_amount"],
+                "discount_pct": order["discount_pct"],
+                "region":      order["region"],
+                "platform":    order["platform"],
+                "event_time":  future_event_time,
+            }
+            
+            self._record_event_id(buffered_event_id)
+            self._record_event_id(future_event_id)
+            return future_payload
 
         order["status"] = next_status
         if next_status in TERMINAL_STATUSES:

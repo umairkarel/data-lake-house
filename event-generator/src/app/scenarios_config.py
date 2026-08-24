@@ -67,6 +67,14 @@ SCENARIOS = {
         "lifecycle_pct": 0.30,      # fraction of events that are status updates (not new orders)
         "cancel_pct": 0.10,         # fraction of orders that eventually get cancelled
         "return_pct": 0.05,         # fraction of delivered orders that get returned
+        
+        # -------------------------------------------------------------------------
+        # OUT-OF-ORDER EVENTS
+        # -------------------------------------------------------------------------
+        "out_of_order_events": {
+            "enabled": True,
+            "pct": 0.10,            # 10% of lifecycle updates will arrive out-of-order
+        },
     },
 
     # -------------------------------------------------------------------------
