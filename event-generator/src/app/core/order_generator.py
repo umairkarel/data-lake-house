@@ -10,9 +10,9 @@ scenarios_config.SCENARIOS — see that file for full documentation.
 State machine per order:
     placed → payment_pending → paid → shipped → delivered
                                                ↘ cancelled  (rare post-ship)
-                              ↘ cancelled       (payment failed)
+                               ↘ cancelled       (payment failed)
            ↘ cancelled         (immediate cancel)
-                                     delivered → returned    (optional)
+                                      delivered → returned    (optional)
 
 Terminal states: delivered (if not returning), cancelled, returned.
 Once an order reaches a terminal state it is removed from the in-flight dict.
@@ -20,9 +20,79 @@ Once an order reaches a terminal state it is removed from the in-flight dict.
 
 import random
 import uuid
-from collections import deque
+from collections import deque, defaultdict
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
+
+
+# ---------------------------------------------------------------------------
+# Stats tracker — accumulates across the lifetime of the generator instance
+# ---------------------------------------------------------------------------
+@dataclass
+class GeneratorStats:
+    total_events: int = 0
+    normal_events: int = 0
+    late_events: int = 0
+    duplicate_events: int = 0
+    total_late_delay_sec: float = 0.0
+    min_delay_sec: float = float("inf")
+    max_delay_sec: float = 0.0
+    delay_buckets: Dict[str, int] = field(default_factory=lambda: {
+        "0-30s": 0, "30-60s": 0, "60-90s": 0, "90-120s": 0, "120s+": 0
+    })
+    late_by_region: Dict[str, int] = field(default_factory=lambda: defaultdict(int))
+
+    def record_normal(self) -> None:
+        self.total_events += 1
+        self.normal_events += 1
+
+    def record_late(self, delay_sec: float, region: str = "unknown") -> None:
+        self.total_events += 1
+        self.late_events += 1
+        self.total_late_delay_sec += delay_sec
+        self.min_delay_sec = min(self.min_delay_sec, delay_sec)
+        self.max_delay_sec = max(self.max_delay_sec, delay_sec)
+        self.late_by_region[region] += 1
+        # Bucket the delay
+        if delay_sec < 30:
+            self.delay_buckets["0-30s"] += 1
+        elif delay_sec < 60:
+            self.delay_buckets["30-60s"] += 1
+        elif delay_sec < 90:
+            self.delay_buckets["60-90s"] += 1
+        elif delay_sec < 120:
+            self.delay_buckets["90-120s"] += 1
+        else:
+            self.delay_buckets["120s+"] += 1
+
+    def record_duplicate(self) -> None:
+        self.total_events += 1
+        self.duplicate_events += 1
+
+    def to_dict(self) -> Dict[str, Any]:
+        avg_delay = (
+            round(self.total_late_delay_sec / self.late_events, 1)
+            if self.late_events > 0 else 0.0
+        )
+        late_pct = round(self.late_events / self.total_events * 100, 1) if self.total_events > 0 else 0.0
+        return {
+            "total_events":      self.total_events,
+            "normal_events":     self.normal_events,
+            "late_events":       self.late_events,
+            "duplicate_events":  self.duplicate_events,
+            "late_pct":          f"{late_pct}%",
+            "late_delay_sec": {
+                "avg": avg_delay,
+                "min": round(self.min_delay_sec, 1) if self.late_events > 0 else 0.0,
+                "max": round(self.max_delay_sec, 1),
+            },
+            "delay_distribution": self.delay_buckets,
+            "late_by_region":     dict(self.late_by_region),
+        }
+
+    def reset(self) -> None:
+        self.__init__()
 
 from app.scenarios_config import SCENARIOS
 
@@ -102,6 +172,9 @@ class OrderEventGenerator:
         self._flash_category: Optional[str] = None
         self._flash_remaining: int = 0
 
+        # Stats tracker — accumulates across the lifetime of this generator
+        self.stats: GeneratorStats = GeneratorStats()
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -115,6 +188,7 @@ class OrderEventGenerator:
             and self._recent_event_ids
             and random.random() < dup_cfg["pct"]
         ):
+            self.stats.record_duplicate()
             return self._build_duplicate()
 
         # 2. Flash-sale burst
@@ -171,7 +245,8 @@ class OrderEventGenerator:
 
         order_id = f"ORD-{uuid.uuid4().hex[:7].upper()}"
         event_id = str(uuid.uuid4())
-        event_time = self._make_event_time()
+        region   = force_region or random.choice(REGIONS)
+        event_time = self._make_event_time(region=region)
 
         payload = {
             "event_id":    event_id,
@@ -184,7 +259,7 @@ class OrderEventGenerator:
             "unit_price":  unit_price,
             "total_amount": total,
             "discount_pct": discount_pct,
-            "region":      force_region or random.choice(REGIONS),
+            "region":      region,
             "platform":    random.choice(PLATFORMS),
             "event_time":  event_time,
         }
@@ -240,7 +315,7 @@ class OrderEventGenerator:
             del self._inflight[order_id]
 
         event_id   = str(uuid.uuid4())
-        event_time = self._make_event_time()
+        event_time = self._make_event_time(region=order["region"])
 
         payload = {
             "event_id":    event_id,
@@ -309,14 +384,16 @@ class OrderEventGenerator:
             return random.choice(pool) if pool else random.choice(PRODUCT_CATALOG)
         return random.choice(PRODUCT_CATALOG)
 
-    def _make_event_time(self) -> str:
+    def _make_event_time(self, region: str = "unknown") -> str:
         """Return an ISO8601 event_time, possibly in the past for late-event scenario."""
         cfg = SCENARIOS["late_events"]
         if cfg["enabled"] and random.random() < cfg["pct"]:
             delay = random.uniform(cfg["min_delay_sec"], cfg["max_delay_sec"])
             ts = datetime.utcnow() - timedelta(seconds=delay)
+            self.stats.record_late(delay_sec=delay, region=region)
         else:
             ts = datetime.utcnow()
+            self.stats.record_normal()
         return ts.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
     def _record_event_id(self, event_id: str) -> None:

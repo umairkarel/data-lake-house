@@ -24,8 +24,8 @@ SCENARIOS = {
     # data and what happens when late records hit a closed window.
     # -------------------------------------------------------------------------
     "late_events": {
-        "enabled": False,
-        "pct": 0.10,            # fraction of events to make late (0.10 = 10%)
+        "enabled": True,
+        "pct": 0.25,            # fraction of events to make late (0.25 = 25%)
         "min_delay_sec": 30,    # minimum seconds behind real wall-clock time
         "max_delay_sec": 120,   # maximum seconds behind real wall-clock time
     },

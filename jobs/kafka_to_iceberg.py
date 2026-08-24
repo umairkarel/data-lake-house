@@ -26,7 +26,7 @@ from pyflink.table.types import DataTypes
 KAFKA_BROKERS     = os.getenv("KAFKA_BROKERS",    "kafka:9092")
 KAFKA_TOPIC       = os.getenv("KAFKA_TOPIC",      "order_events")
 KAFKA_GROUP_ID    = os.getenv("KAFKA_GROUP_ID",   "flink-lakehouse")
-KAFKA_START_OFFSET = os.getenv("KAFKA_START_OFFSET", "earliest-offset")
+KAFKA_START_OFFSET = os.getenv("KAFKA_START_OFFSET", "latest-offset")
 
 NESSIE_URI  = os.getenv("NESSIE_URI",         "http://lakehouse-nessie:19120/api/v1")
 NESSIE_REF  = os.getenv("NESSIE_REF",         "main")
@@ -97,6 +97,8 @@ def main():
     # 4. Create Kafka source table
     #    Schema matches order_events produced by OrderEventGenerator
     # -------------------------------------------------------------------------
+    
+    ## WATERMARK FOR event_timestamp AS event_timestamp - INTERVAL '5' SECOND
     t_env.execute_sql(f"""
         CREATE TEMPORARY TABLE kafka_source (
             event_id        STRING,
@@ -112,8 +114,7 @@ def main():
             region          STRING,
             platform        STRING,
             event_time      STRING,
-            event_timestamp AS TO_TIMESTAMP(event_time, '{TIMESTAMP_PATTERN}'),
-            WATERMARK FOR event_timestamp AS event_timestamp - INTERVAL '5' SECOND
+            event_timestamp AS TO_TIMESTAMP(event_time, '{TIMESTAMP_PATTERN}')
         ) WITH (
             'connector'                    = 'kafka',
             'topic'                        = '{KAFKA_TOPIC}',

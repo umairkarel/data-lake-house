@@ -8,7 +8,7 @@ from pyflink.table.window import Tumble
 KAFKA_BROKERS     = os.getenv("KAFKA_BROKERS",    "kafka:9092")
 KAFKA_TOPIC       = os.getenv("KAFKA_TOPIC",      "order_events")
 KAFKA_GROUP_ID    = os.getenv("KAFKA_GROUP_ID_AGG", "flink-agg-job")
-KAFKA_START_OFFSET = "latest-offset"
+KAFKA_START_OFFSET = os.getenv("KAFKA_START_OFFSET", "latest-offset")
 
 NESSIE_URI  = os.getenv("NESSIE_URI",         "http://lakehouse-nessie:19120/api/v1")
 
@@ -29,7 +29,7 @@ TIMESTAMP_PATTERN = "yyyy-MM-dd HH:mm:ss.SSS"
 
 
 def process_events(t_env):
-    t_env.execute_sql(f"DROP TABLE IF EXISTS {SINK_TABLE_NAME}")
+    # t_env.execute_sql(f"DROP TABLE IF EXISTS {SINK_TABLE_NAME}")
     t_env.execute_sql(f"""
         CREATE TABLE IF NOT EXISTS {SINK_TABLE_NAME} (
             event_time TIMESTAMP(3),

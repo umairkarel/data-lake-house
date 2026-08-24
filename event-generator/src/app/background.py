@@ -5,6 +5,12 @@ import random
 from app.core.order_generator import OrderEventGenerator
 from app.providers.kafka.managers.aio_producer_manager import AIOKafkaProducerManager
 
+# ---------------------------------------------------------------------------
+# Shared generator instance — persists across HTTP requests AND background loop
+# so stats accumulate for the full session lifetime.
+# ---------------------------------------------------------------------------
+shared_generator = OrderEventGenerator()
+
 
 async def continuous_generation_task(app):
     is_active = os.environ.get("ACTIVE_GENERATION", "false").lower() == "true"
@@ -18,8 +24,6 @@ async def continuous_generation_task(app):
 
     print(f"Starting continuous order-event generation to topic '{topic_name}' every {interval}s...")
 
-    generator = OrderEventGenerator()
-
     producer = AIOKafkaProducerManager(
         bootstrap_servers=bootstrap_servers,
         acks=1,
@@ -29,7 +33,7 @@ async def continuous_generation_task(app):
     try:
         while True:
             count  = random.randint(1, 5)
-            events = generator.generate_batch(count)
+            events = shared_generator.generate_batch(count)
 
             print(f"Generating {count} order events to '{topic_name}'...")
 

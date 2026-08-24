@@ -70,6 +70,12 @@ run-join-job: ## Submit the Kafka → Iceberg streaming job
 		--python /opt/flink/jobs/join_job.py \
 		--pyFiles /opt/flink/catalog
 
+.PHONY: run-late-events-job
+run-late-events-job: ## Submit the late events handling job (requires patch-taskmanager first)
+	docker exec $(FLINK_JM) flink run \
+		--python /opt/flink/jobs/late_events_job.py \
+		--pyFiles /opt/flink/catalog
+
 .PHONY: jobs
 jobs: ## List running Flink jobs
 	docker exec $(FLINK_JM) flink list
@@ -135,6 +141,14 @@ pause-active-events: ## Set ACTIVE_GENERATION=false in .env and restart the even
 	@powershell -Command "(Get-Content .env) -replace 'ACTIVE_GENERATION=true','ACTIVE_GENERATION=false' | Set-Content .env"
 	$(COMPOSE) up -d event-generator
 	@echo "Background generation paused."
+
+.PHONY: event-stats
+event-stats: ## View current event generator session stats (useful for continuous generation)
+	@curl -s -X GET http://localhost:8090/stats | python -m json.tool
+
+.PHONY: event-stats-reset
+event-stats-reset: ## Reset the event generator session stats to zero
+	@curl -s -X POST http://localhost:8090/stats/reset | python -m json.tool
 
 # ---------------------------------------------------------------------------
 # Analytics

@@ -5,7 +5,7 @@ from pyflink.table import StreamTableEnvironment, EnvironmentSettings
 KAFKA_BROKERS     = os.getenv("KAFKA_BROKERS",    "kafka:9092")
 KAFKA_TOPIC       = os.getenv("KAFKA_TOPIC",      "order_events")
 KAFKA_GROUP_ID    = "flink-enrich-job-regions"
-KAFKA_START_OFFSET = "latest-offset"
+KAFKA_START_OFFSET = os.getenv("KAFKA_START_OFFSET", "latest-offset")
 
 NESSIE_URI  = os.getenv("NESSIE_URI",         "http://lakehouse-nessie:19120/api/v1")
 NESSIE_REF  = 'dev'
@@ -22,7 +22,7 @@ CHECKPOINT_INTERVAL_MS = int(os.getenv("CHECKPOINT_INTERVAL_MS", "60000"))  # 1 
 TIMESTAMP_PATTERN = "yyyy-MM-dd HH:mm:ss.SSS"
 
 def process_events(t_env):
-    t_env.execute_sql(f"DROP TABLE IF EXISTS {SINK_TABLE_NAME}")
+    # t_env.execute_sql(f"DROP TABLE IF EXISTS {SINK_TABLE_NAME}")
     t_env.execute_sql(f"""
         CREATE TABLE IF NOT EXISTS {SINK_TABLE_NAME} (
             event_time TIMESTAMP(3),
