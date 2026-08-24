@@ -80,6 +80,22 @@ RUN pip3 install --no-cache-dir apache-flink==${FLINK_VERSION} && \
     pip3 install --no-cache-dir pyiceberg[s3fs,nessie]==0.8.1 pyyaml pynessie "marshmallow<4.0.0"
 
 # ---------------------------------------------------------------------------
+# PyFlink Bug Fix: allowed_lateness TypeError in WindowOperator
+#
+# Root cause: PyFlink serializes WindowOperationDescriptor via cloudpickle,
+# bypassing Java type safety. The worker receives a Time object instead of
+# an int, causing: TypeError: unsupported operand type(s) for +: 'int' and 'Time'
+# Affected file: pyflink/fn_execution/datastream/window/window_operator.py L514
+# Status: Unpatched on Flink master branch as of 2026-08-24.
+# See: learning_docs/debugging.md for full analysis.
+# ---------------------------------------------------------------------------
+RUN sed -i \
+    's/ + self\.allowed_lateness/ + self.allowed_lateness.to_milliseconds()/g' \
+    /usr/local/lib/python3.10/dist-packages/pyflink/fn_execution/datastream/window/window_operator.py && \
+    echo "PyFlink allowed_lateness patch applied:" && \
+    grep -n "to_milliseconds" /usr/local/lib/python3.10/dist-packages/pyflink/fn_execution/datastream/window/window_operator.py
+
+# ---------------------------------------------------------------------------
 # Jobs directory — PyFlink job scripts will be mounted/copied here
 # ---------------------------------------------------------------------------
 RUN mkdir -p /opt/flink/jobs && chown -R flink:flink /opt/flink/jobs
