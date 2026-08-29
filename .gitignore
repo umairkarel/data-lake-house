@@ -38,3 +38,6 @@ Thumbs.db
 notes/
 agents/
 learning_docs/
+
+# Ignore all output folders at any level
+output/

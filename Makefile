@@ -52,6 +52,17 @@ setup-catalog: ## Create Iceberg namespace and tables in Nessie
 # ---------------------------------------------------------------------------
 # Flink jobs
 # ---------------------------------------------------------------------------
+FILE ?= $(file)
+ifeq ($(FILE),)
+  FILE = day02_datastream_api
+endif
+
+.PHONY: run-practice-job
+run-practice-job: ## Submit the Kafka → Iceberg streaming job
+	docker exec $(FLINK_JM) flink run \
+		--python /opt/flink/jobs/30-Day-Flink/$(FILE).py \
+		--pyFiles /opt/flink/catalog
+
 .PHONY: run-kafka-job
 run-kafka-job: ## Submit the Kafka → Iceberg streaming job
 	docker exec $(FLINK_JM) flink run \

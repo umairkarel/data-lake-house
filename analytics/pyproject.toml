@@ -3,12 +3,13 @@ name = "lakehouse-analytics"
 version = "0.1.0"
 description = "Analytics module for our data lakehouse project"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.10,<3.12"
 dependencies = [
+    "apache-flink==1.20.0",
     "boto3>=1.43.56",
     "duckdb>=1.5.5",
-    "pandas>=3.0.5",
-    "pyarrow>=14.0.0",
+    "pandas>=2.0.0,<3.0.0",
+    "pyarrow>=11.0.0,<12.0.0",
     "pyiceberg[nessie,s3fs]==0.8.1",
     "pynessie>=0.67.0",
     "pyyaml>=6.0.3",

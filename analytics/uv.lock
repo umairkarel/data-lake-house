@@ -123,6 +123,16 @@ wheels = [
 ]
 
 [[package]]
+name = "apache-flink"
+version = "1.9.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "py4j" },
+    { name = "python-dateutil" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/66/d6/0795a8bedeb0b5154b334cb6a50b1bea8963eef5613fd1f667537aecdf47/apache-flink-1.9.3.tar.gz", hash = "sha256:65ad0188a6a028265add28f45680cd89ab6928ea7f34dcaaa4cb9fa878de3cd3", size = 251175230, upload-time = "2020-04-24T02:08:45.359Z" }
+
+[[package]]
 name = "attrs"
 version = "26.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -406,6 +416,7 @@ name = "lakehouse-analytics"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "apache-flink" },
     { name = "boto3" },
     { name = "duckdb" },
     { name = "pandas" },
@@ -418,6 +429,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "apache-flink", specifier = ">=1.9.3" },
     { name = "boto3", specifier = ">=1.43.56" },
     { name = "duckdb", specifier = ">=1.5.5" },
     { name = "pandas", specifier = ">=3.0.5" },
@@ -690,6 +702,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/88/fb/46dad6c0ae49ed230ab1b16c890c2b6314e2403e6c412976f4a72d64a527/propcache-0.5.2-cp314-cp314t-win_amd64.whl", hash = "sha256:d447bb0b3054be5818458fbb171208b1d9ff11eba14e18ca18b90cbb45767370", size = 47764, upload-time = "2026-05-08T21:02:07.353Z" },
     { url = "https://files.pythonhosted.org/packages/e7/c4/a47d0a63aa309d10d59ede6e9d4cff03a344a79d1f0f4cd0cd74997b53e0/propcache-0.5.2-cp314-cp314t-win_arm64.whl", hash = "sha256:fe67a3d11cd9b4efabfa45c3d00ffba2b26811442a73a581a94b67c2b5faccf6", size = 41140, upload-time = "2026-05-08T21:02:09.065Z" },
     { url = "https://files.pythonhosted.org/packages/3a/ed/1cdcab6ba3d6ab7feca11fc14f0eeea80755bb53ef4e892079f31b10a25f/propcache-0.5.2-py3-none-any.whl", hash = "sha256:be1ddfcbb376e3de5d2e2db1d58d6d67463e6b4f9f040c000de8e300295465fe", size = 14036, upload-time = "2026-05-08T21:02:10.673Z" },
+]
+
+[[package]]
+name = "py4j"
+version = "0.10.8.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c0/e3/1f110e6c069522ba7a8dc215ff1c343b6bc1f98d84e6d627ca2708426eaa/py4j-0.10.8.1.zip", hash = "sha256:8329bb156a0cf37be9642a2a060dbdb627b5fcb827919be65d95102daccca274", size = 1102033, upload-time = "2018-10-21T10:36:47.852Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/04/de/2d314a921ef4c20b283e1de94e0780273678caac901564df06b948e4ba9b/py4j-0.10.8.1-py2.py3-none-any.whl", hash = "sha256:51d994ae19a3eb35eaa45851081e25922500d59875606bf27ac0d40929724939", size = 196501, upload-time = "2018-10-21T10:36:45.851Z" },
 ]
 
 [[package]]
