@@ -25,9 +25,9 @@ SCENARIOS = {
     # -------------------------------------------------------------------------
     "late_events": {
         "enabled": True,
-        "pct": 0.25,            # fraction of events to make late (0.25 = 25%)
+        "pct": 0.50,            # fraction of events to make late (0.25 = 25%)
         "min_delay_sec": 30,    # minimum seconds behind real wall-clock time
-        "max_delay_sec": 120,   # maximum seconds behind real wall-clock time
+        "max_delay_sec": 90,   # maximum seconds behind real wall-clock time
     },
 
     # -------------------------------------------------------------------------
@@ -86,8 +86,8 @@ SCENARIOS = {
     # Teaches windowing behavior under bursty traffic and backpressure management.
     # -------------------------------------------------------------------------
     "flash_sale": {
-        "enabled": False,
-        "interval_sec": 60,     # how often a flash sale is triggered (seconds)
+        "enabled": True,
+        "interval_sec": 40,     # how often a flash sale is triggered (seconds)
         "burst_count": 40,      # number of extra events to emit in the burst
         "category": None,       # None = random category; or set e.g. "electronics"
     },

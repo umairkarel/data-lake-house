@@ -56,7 +56,7 @@ env = StreamExecutionEnvironment.get_execution_environment()
 kafka_source = KafkaSource.builder() \
                 .set_bootstrap_servers("kafka:9092") \
                 .set_topics("order_events") \
-                .set_group_id("job06-week1") \
+                .set_group_id("job07") \
                 .set_starting_offsets(KafkaOffsetsInitializer.latest()) \
                 .set_value_only_deserializer(json_deserializer) \
                 .build()
